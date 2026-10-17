@@ -1,0 +1,9 @@
+#pragma once
+
+// Copy this file to config.h. config.h is gitignored.
+
+#define WIFI_SSID "your-wifi"
+#define WIFI_PASSWORD "your-password"
+#define MQTT_HOST "192.168.1.20"
+#define MQTT_PORT 1883
+#define NODE_ID "bench"

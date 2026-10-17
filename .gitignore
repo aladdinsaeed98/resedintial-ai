@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+data/
+firmware/bench_node/config.h
+*.db
+*.db-wal
+*.db-shm
+secrets.yaml
+.env
+*.env

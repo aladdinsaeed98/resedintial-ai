@@ -1,0 +1,16 @@
+{
+  "points": [
+    {
+      "id": "return_air_temp",
+      "name": "Return air",
+      "unit": "F",
+      "node_id": "bench"
+    },
+    {
+      "id": "supply_air_temp",
+      "name": "Supply air",
+      "unit": "F",
+      "node_id": "bench"
+    }
+  ]
+}
