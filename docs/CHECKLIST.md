@@ -47,7 +47,7 @@ Goal: one ESP32 with two temperature probes on your desk, readings on a web page
 
 Hardware (you)
 - [ ] Get 1 ESP32 dev board and 2 DS18B20 waterproof probes (plus a 4.7 kOhm pull-up resistor).
-- [ ] Install Mosquitto (MQTT broker) on the hub machine and confirm it runs.
+- [x] Install Mosquitto (MQTT broker) on the hub machine and confirm it runs.
 - [ ] Install ESPHome, flash the ESP32, and confirm it joins your Wi-Fi.
 
 Code (Cursor)
