@@ -1,3 +1,9 @@
+/* Live page look.
+   White tiles are current numbers. Grey tiles mean the hub has not heard
+   that point (stale, bad, missing, unknown) — the last number is not left
+   looking current. If tiles never grey out, check that app.js sets
+   data-status on each article. */
+
 :root {
   color-scheme: light;
   font-family: "Segoe UI", sans-serif;
@@ -32,6 +38,7 @@ footer,
   margin: 0 0 0.8rem;
 }
 
+/* Amber: hub or MQTT problem, not an HVAC fault. */
 .banner {
   min-height: 1.2rem;
   margin: 0 0 0.8rem;
@@ -50,6 +57,7 @@ footer,
   padding: 0.95rem 1.1rem 1rem;
 }
 
+/* Anything that is not live (stale, bad, missing) goes grey. */
 .tile:not([data-status="live"]) {
   background: #e4e6ea;
   color: #626977;

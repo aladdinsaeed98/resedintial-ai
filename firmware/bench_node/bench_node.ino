@@ -1,5 +1,17 @@
 // Bench node: two DS18B20 probes, publish only.
 //
+// This sketch is the ESP32 end of the data flow:
+//   probes -> JSON {point, value, unit, timestamp, quality}
+//          -> MQTT topic hvac/<NODE_ID>/reading
+//          -> hub gateway -> store -> live page
+//
+// It never listens for inbound MQTT and has no equipment outputs.
+// Power the board from USB. Do not tie it to the furnace transformer.
+//
+// If nothing shows on the page: Serial Monitor at 115200. "wifi down" means
+// config.h SSID/password. "mqtt down" means MQTT_HOST is not the hub's LAN
+// IP (127.0.0.1 is the board itself). "missing return_air_temp" means wiring.
+//
 // Wiring (3.3 V data, not 5 V):
 //   ESP32 3V3 ----+---- DS18B20 VDD (both probes)
 //                 |
@@ -7,9 +19,6 @@
 //                 |
 //   GPIO4 --------+---- DS18B20 DQ (both probes)
 //   GND --------------- DS18B20 GND (both probes)
-//
-// This sketch does not subscribe and has no equipment outputs.
-// Power the board from USB. Do not tie it to the furnace transformer.
 
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -23,10 +32,14 @@
 #error "Copy config.h.example to config.h and fill in Wi-Fi and the hub IP."
 #endif
 
+// GPIO4 is ADC1-safe later if we add a current clamp; keep 1-Wire here.
 constexpr int kOneWirePin = 4;
+// 10 seconds, same as the simulator and the Phase 1 pass.
 constexpr unsigned long kPublishIntervalMs = 10000;
+// Unix time for 2024-01-01. Below this, the board has no NTP yet.
 constexpr time_t kMinValidTime = 1704067200;
 
+// Index 0 is the first probe Dallas enumerates (return), 1 is supply.
 const char *kPointIds[] = {"return_air_temp", "supply_air_temp"};
 
 OneWire oneWire(kOneWirePin);
@@ -40,13 +53,17 @@ bool ntpStarted = false;
 unsigned long nextMqttRetryMs = 0;
 
 void setup() {
+  // USB serial is the first debug tool. 115200 matches the Arduino serial monitor.
   Serial.begin(115200);
   dallas.begin();
   WiFi.mode(WIFI_STA);
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  // Default PubSubClient buffer is too small for two JSON readings in a row.
   mqtt.setBufferSize(512);
 }
 
+// Join home Wi-Fi. Returns true when we have an IP.
+// 8 s timeout so loop() can keep trying without blocking forever.
 bool wifiUp() {
   if (WiFi.status() == WL_CONNECTED) return true;
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -63,6 +80,8 @@ bool wifiUp() {
   return false;
 }
 
+// Connect to Mosquitto as NODE_ID. No inbound topic is registered.
+// 2 s backoff when the hub is not up yet (you started the board first).
 bool mqttUp() {
   if (mqtt.connected()) return true;
   unsigned long nowMs = millis();
@@ -76,6 +95,8 @@ bool mqttUp() {
   return false;
 }
 
+// True once NTP has given a clock after 2024. False -> timestamp field is null
+// and the hub fills received_at instead. Do not invent a date.
 bool clockSynced() {
   if (!ntpStarted) {
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
@@ -84,6 +105,9 @@ bool clockSynced() {
   return time(nullptr) >= kMinValidTime;
 }
 
+// Publish one point. ok=false sends value:null quality:bad so a dead probe
+// is visible as Bad reading, not as the last good number.
+// retain is false: unplugging the board must not leave a zombie payload.
 void publishOne(const char *pointId, bool ok, float valueF) {
   char timestampField[40];
   if (clockSynced()) {
@@ -114,6 +138,8 @@ void publishOne(const char *pointId, bool ok, float valueF) {
   Serial.println(payload);
 }
 
+// Read both probes. Dallas index order is bus order, not "left vs right" on the desk.
+// A missing index is skipped (no payload) so the hub will mark that point stale.
 void publishTemperatures() {
   dallas.requestTemperatures();
   int count = dallas.getDeviceCount();
@@ -131,12 +157,14 @@ void publishTemperatures() {
 }
 
 void loop() {
+  // No Wi-Fi or broker: wait and retry. Do not publish into the void.
   if (!wifiUp() || !mqttUp()) {
     delay(200);
     return;
   }
   mqtt.loop();
   unsigned long nowMs = millis();
+  // First pass publishes immediately, then every 10 s.
   if (!hasPublished || nowMs - lastPublishMs >= kPublishIntervalMs) {
     publishTemperatures();
     lastPublishMs = nowMs;

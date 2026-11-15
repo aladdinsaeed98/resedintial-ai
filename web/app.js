@@ -1,3 +1,13 @@
+// Live page logic. Polls GET /api/readings and draws one tile per point.
+//
+// Data flow: hub snapshot -> this file -> tiles in index.html.
+// A number is shown only when status is live and value is a number. Stale
+// tiles say "Stale" and go grey via CSS. This page cannot command equipment.
+//
+// If tiles freeze, the hub process or Mosquitto is down (see the banner).
+// If they never go stale after you stop the simulator, check
+// snapshot.stale_after_seconds (should be 120).
+
 const POLL_MS = 1000;
 const TICK_MS = 250;
 
@@ -12,22 +22,36 @@ const tiles = new Map();
 let snapshot = null;
 let syncedAt = 0;
 
+/**
+ * Turn 120 into "2 min" so the subtitle is readable. Other values stay in seconds.
+ */
 function staleLabel(seconds) {
   if (seconds % 60 === 0) return String(seconds / 60) + " min";
   return String(seconds) + " s";
 }
 
+/**
+ * One decimal place, with a degree sign for F/C. Hub already hid non-live values.
+ */
 function formatReading(value, unit) {
   const shown = (Math.round(value * 10) / 10).toFixed(1);
   if (unit === "F" || unit === "C") return shown + " \u00b0" + unit;
   return shown + " " + unit;
 }
 
+/**
+ * Age in seconds as of right now, not as of the last poll.
+ * Hub age + time since we fetched, so the "12s ago" label keeps moving between polls.
+ */
 function hubAge(point) {
   if (typeof point.age_seconds !== "number") return null;
   return point.age_seconds + (performance.now() - syncedAt) / 1000;
 }
 
+/**
+ * Status the tile should show. If the last snapshot is older than the cutoff,
+ * treat it as stale here so we do not wait for the next poll to grey the tile.
+ */
 function effectiveStatus(point) {
   if (point.status === "missing") return "missing";
   const age = hubAge(point);
@@ -35,6 +59,10 @@ function effectiveStatus(point) {
   return point.status;
 }
 
+/**
+ * Draw or update every tile from the last snapshot. Safe to call on a timer
+ * with no new data so ages tick. Tiles whose points disappeared are removed.
+ */
 function render() {
   const root = document.getElementById("points");
   if (!snapshot || !Array.isArray(snapshot.points)) return;
@@ -62,6 +90,7 @@ function render() {
     const valueEl = tile.querySelector(".value");
     const metaEl = tile.querySelector(".meta");
     const age = hubAge(point);
+    // Show a number only for a live, numeric sample. Anything else is a status label.
     if (status === "live" && typeof point.value === "number") {
       valueEl.textContent = formatReading(point.value, point.unit);
       metaEl.textContent = point.node_id + " · " + Math.floor(age) + "s ago";
@@ -80,6 +109,10 @@ function render() {
   });
 }
 
+/**
+ * Fetch /api/readings once. cache: no-store so the phone never paints an old JSON.
+ * Network failure sets the banner; MQTT-down is a separate banner from the hub.
+ */
 async function poll() {
   try {
     const response = await fetch("/api/readings", { cache: "no-store" });

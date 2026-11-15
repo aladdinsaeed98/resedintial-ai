@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!--
+  Live HVAC page. The hub serves this at GET /.
+  Data flow: MQTT readings -> hub store -> /api/readings -> this page.
+  Display only: no controls that could command equipment.
+  If the subtitle stays on "Waiting for the hub", python -m hub is not running.
+-->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -9,8 +15,11 @@
 <body>
   <main>
     <h1>HVAC monitor</h1>
+    <!-- Hub time and stale cutoff, filled in by app.js after the first poll. -->
     <p class="sub" id="subtitle">Waiting for the hub…</p>
+    <!-- Connection problems (no hub, no MQTT). Empty when everything is fine. -->
     <p class="banner" id="banner"></p>
+    <!-- One tile per point, created in JavaScript. -->
     <div class="grid" id="points"></div>
     <footer>Read only. This page cannot start, stop, or change the equipment.</footer>
   </main>
