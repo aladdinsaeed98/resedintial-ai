@@ -1,5 +1,5 @@
-fastapi>=0.115,<1
-uvicorn>=0.30,<1
-paho-mqtt>=2.1,<3
-pytest>=8,<9
-httpx>=0.27,<1
+fastapi>=0.115,<1    # Read-only HTTP API and live page
+uvicorn>=0.30,<1     # Runs the app when you type python -m hub
+paho-mqtt>=2.1,<3    # MQTT client: hub listens, simulator publishes; neither commands equipment
+pytest>=8,<9         # Test runner. Comment-only changes must keep the same 19 passing tests
+httpx>=0.27,<1       # Needed by FastAPI's TestClient to hit /api/readings in tests

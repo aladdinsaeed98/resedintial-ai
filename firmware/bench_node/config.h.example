@@ -1,9 +1,11 @@
 #pragma once
 
-// Copy this file to config.h. config.h is gitignored.
+// Copy this file to config.h. config.h is gitignored so the Wi-Fi password
+// never lands in git. If the board never reaches the hub, these five values
+// are the first things to check. Do not commit the filled-in copy.
 
-#define WIFI_SSID "your-wifi"
-#define WIFI_PASSWORD "your-password"
-#define MQTT_HOST "192.168.1.20"
-#define MQTT_PORT 1883
-#define NODE_ID "bench"
+#define WIFI_SSID "your-wifi"          // Home Wi-Fi name (2.4 GHz; ESP32 has no 5 GHz)
+#define WIFI_PASSWORD "your-password"  // Stays in config.h only, never in the repo
+#define MQTT_HOST "192.168.1.20"       // Hub PC's LAN IP. Not 127.0.0.1 (that is the board)
+#define MQTT_PORT 1883                 // Mosquitto's default MQTT port
+#define NODE_ID "bench"                // Topic becomes hvac/bench/reading. Keep this in Phase 1

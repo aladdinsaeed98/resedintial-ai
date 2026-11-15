@@ -1,7 +1,10 @@
+# Optional Mosquitto broker for the bench.
+# The hub and simulator talk through this; nothing here commands HVAC equipment.
+# If python -m hub shows mqtt_connected false, run: docker compose up -d
 services:
   mosquitto:
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2    # Official Eclipse Mosquitto 2.x
     ports:
-      - "1883:1883"
+      - "1883:1883"               # MQTT on the usual port. Do not port-forward on the router.
     volumes:
-      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro  # Our bench config, read-only

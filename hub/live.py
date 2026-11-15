@@ -1,8 +1,13 @@
 """Decide what the page is allowed to show for each point.
 
-Stale means the hub stopped hearing that point. A message that just arrived
-is current even if the node's own clock is wrong. A stale or bad-quality
-sample is not returned as a current value.
+Sits between the store and the API. Stale means the hub stopped hearing
+that point (age from received_at, default 120 s). A message that just
+arrived is current even if the node's own clock is wrong. A stale or
+bad-quality sample is not returned as a current value — the last number
+is not left on screen.
+
+If tiles stay live after you unplug the node, check stale_after_seconds
+and that age is computed from received_at, not the device timestamp.
 """
 
 from __future__ import annotations
@@ -19,6 +24,12 @@ from hub.store import ReadingStore
 
 @dataclass(frozen=True)
 class LivePoint:
+    """One tile's worth of data after stale/bad rules have been applied.
+
+    status is missing, live, stale, bad, or unknown. value is a number only
+    when status is live; otherwise it is None so the page cannot show junk.
+    """
+
     point_id: str
     name: str
     node_id: str
@@ -32,6 +43,7 @@ class LivePoint:
     time_source: str | None
 
     def as_public_dict(self) -> dict[str, Any]:
+        """JSON for /api/readings. Timestamps are Z-suffix UTC strings or null."""
         return {
             "point_id": self.point_id,
             "name": self.name,
@@ -52,6 +64,12 @@ class LivePoint:
 def collect_live_points(
     settings: Settings, store: ReadingStore, now: datetime
 ) -> list[LivePoint]:
+    """Classify every configured point, then any extra ids that showed up on the wire.
+
+    Configured points stay in points.json order so the page does not jump
+    around. Unexpected ids are appended, sorted, rather than dropped — a
+    misnamed probe should still be visible while you debug it.
+    """
     latest = store.latest_map()
     ordered = [spec.id for spec in settings.points]
     extras = sorted(point_id for point_id in latest if point_id not in ordered)
@@ -71,6 +89,7 @@ def collect_live_points(
 def live_point_for(
     settings: Settings, store: ReadingStore, point_id: str, now: datetime
 ) -> LivePoint | None:
+    """Classify one point. None only if the id is unknown to both config and store."""
     spec = next((item for item in settings.points if item.id == point_id), None)
     reading = store.latest(point_id)
     if spec is None and reading is None:
@@ -79,6 +98,7 @@ def live_point_for(
 
 
 def public_snapshot(settings: Settings, store: ReadingStore, now: datetime) -> dict[str, Any]:
+    """Full payload for /api/readings: system name, hub time, cutoff, and all tiles."""
     points = collect_live_points(settings, store, now)
     return {
         "system_name": settings.system_name,
@@ -95,6 +115,13 @@ def classify(
     stale_after_seconds: int,
     point_id: str,
 ) -> LivePoint:
+    """Apply the Phase 1 display rules to one stored row.
+
+    Age is hub receive time minus now, not the ESP32's clock — a just-arrived
+    sample is live even if the board's timestamp is hours off. After
+    stale_after_seconds (120) the value is stripped. BAD quality (disconnected
+    probe, out-of-range temp) is shown as bad, never as a number.
+    """
     name = spec.name if spec is not None else point_id
     fallback_unit = spec.unit if spec is not None else ""
     fallback_node = spec.node_id if spec is not None else ""
@@ -113,6 +140,7 @@ def classify(
             time_source=None,
         )
 
+    # Hub hear-time, not the node's clock. A future device ts cannot fake "still live".
     age = int((now - reading.received_at).total_seconds())
     if age < 0:
         age = 0
@@ -123,6 +151,7 @@ def classify(
     elif reading.quality is Quality.BAD:
         status = "bad"
     else:
+        # Missing or unknown quality is not promoted to good.
         status = "unknown"
 
     quality = {"live": "good", "bad": "bad", "unknown": "unknown"}.get(status)
@@ -133,6 +162,7 @@ def classify(
         unit=reading.unit or fallback_unit,
         status=status,
         quality=quality,
+        # Hide the number unless this sample is current and good.
         value=reading.value if status == "live" else None,
         age_seconds=age,
         device_timestamp=reading.device_timestamp,
