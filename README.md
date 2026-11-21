@@ -4,7 +4,9 @@ Monitor-only bench for one ESP32 and two DS18B20 probes. The node publishes read
 
 A reading is `{point, value, unit, timestamp, quality}` on `hvac/{node}/reading`. The dashboard shows the number while samples are arriving, and replaces it with **Stale** when a point has been silent for 2 minutes (`received_at` from the cloud, not the node's clock). The last number is not left on screen.
 
-Phase 2 (install, history charts) is not started.
+Fault rules live in `config/rules.json` and run on each ingest (and on a Vercel Cron tick for silent sensors). Many thermostats delay compressor start by about 5 minutes, so `call_no_compressor` may need its `after_s` raised from 180 to 360 after you watch a few real calls.
+
+Phase C (ntfy / email / healthchecks / audit log) is not started.
 
 ## Architecture (why two processes)
 
@@ -43,7 +45,7 @@ npm test
 npm run build
 ```
 
-`npm test` (Vitest) checks the 10-second update path, the 2-minute stale cutoff, ingest auth, Clerk 401, collector retry, and that stale or bad-quality numbers are absent from the page payload.
+`npm test` (Vitest) checks the 10-second update path, the 2-minute stale cutoff, ingest auth, Clerk 401, collector retry, each fault rule (fire / no-fire / timing), the 30-minute alert dedupe window, cron auth, 405s on writes, and that stale or bad-quality numbers are absent from the page payload.
 
 `npm run build` works with placeholder env (empty Clerk / database keys). It does not need a real Clerk app or Postgres until you run the dashboard for real.
 
@@ -80,9 +82,10 @@ npm run dev
 
 Open http://localhost:3000 — Clerk sign-in, then the dark Home screen. The
 bottom bar has Home, Live, History, Codes, Alerts, Ask, and Settings. Home
-and Live show `/api/readings`. The other five say "Coming in a later phase".
-On a phone, browser menu → Add to Home Screen (PWA). The app is still
-**Read only**.
+and Live show `/api/readings`. Alerts shows `/api/alerts`. History, Codes,
+Ask, and Settings still say "Coming in a later phase". Home can show an
+active-alert count only when it is not zero. On a phone, browser menu → Add
+to Home Screen (PWA). The app is still **Read only**.
 
 ```powershell
 npm run collector
@@ -90,9 +93,11 @@ npm run collector
 
 ```powershell
 npm run simulate
+# Hold a fault signature (timing rules still need enough elapsed time):
+npm run simulate -- --fault call_no_compressor
 ```
 
-The two temperatures step every 10 seconds. Stop the simulator (or unplug the ESP32). Within 2 minutes both tiles turn grey, say Stale, and the temperatures are gone.
+The simulator publishes the two temps plus call/amps/LED stand-ins every 10 seconds. Firmware still sends only the two temps — extra tiles go Stale until those sensors exist, and `stale_sensor` will alert unless you remove the unused ids from `config/points.json`. Stop the simulator (or unplug the ESP32). Within 2 minutes live tiles turn grey, say Stale, and the numbers are gone.
 
 The collector's retry buffer is `%LOCALAPPDATA%\hvac-monitor\hvac.db`, not in this iCloud folder. Override with `HVAC_DB`. That file is **not** the cloud database.
 
@@ -162,6 +167,7 @@ PowerShell one-liner:
 | `DATABASE_URL` | yes (Docker or Neon) | yes (Marketplace) |
 | `DIRECT_URL` | yes | yes (Neon direct) |
 | `INGEST_SECRET` | yes | yes |
+| `CRON_SECRET` | yes (local cron tests) | yes (Vercel Cron) |
 | `HUB_INGEST_URL` | yes (collector) | no (unused on Vercel) |
 | `HVAC_MQTT_HOST` / `HVAC_MQTT_PORT` | yes (collector) | **no** |
 | `HVAC_DB` | optional (collector buffer) | **no** |
@@ -175,7 +181,13 @@ npm run collector    # MQTT → HTTPS ingest
 npm run simulate     # fake ESP32, or flash the real board
 ```
 
-Sign in with the Clerk user you created. Footer still says **Read only**.
+Sign in with the Clerk user you created. Footer still says **Read only**. After pulling this phase, apply the alerts migration once:
+
+```powershell
+npx prisma migrate deploy
+```
+
+Set `CRON_SECRET` in the Vercel project env (same long random string as `.env.local`). Hobby cron may only run once a day; ingest still evaluates rules on every collector POST.
 
 ## Flash the ESP32
 

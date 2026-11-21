@@ -1,7 +1,8 @@
 /**
  * Clerk session on every page and API route except public ones.
  *
- * Public: sign-in, sign-up, POST /api/ingest (collector secret), GET /api/health.
+ * Public: sign-in, sign-up, POST /api/ingest (collector secret), GET /api/health,
+ * GET /api/cron/rules (CRON_SECRET).
  * When Clerk keys are placeholders, middleware is a no-op so `next build`
  * and Vitest work without a Clerk account.
  *
@@ -18,6 +19,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/api/ingest(.*)",
   "/api/health(.*)",
+  "/api/cron(.*)",
   "/openapi.json",
 ]);
 

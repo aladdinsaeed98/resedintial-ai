@@ -31,10 +31,11 @@ collector/buffer.ts           SQLite retry queue on the Windows PC / Pi
         |  outbound HTTPS POST /api/ingest
         |  Authorization: Bearer INGEST_SECRET
         v
-app/api/ingest/route.ts       stamps received_at (Vercel clock), Prisma insert
+app/api/ingest/route.ts       stamps received_at (Vercel clock), Prisma insert,
+                              then hub/engine.ts (pure: state in, alerts out)
         |
         v
-Postgres (Vercel Marketplace / Neon)
+Postgres (Vercel Marketplace / Neon)  readings + alerts
         |
         v
 hub/live.ts                   age from received_at; after 120 s the number
@@ -42,9 +43,13 @@ hub/live.ts                   age from received_at; after 120 s the number
         |
         v
 app/api/readings/route.ts     GET /api/readings  (Clerk session, no-store)
+app/api/alerts/route.ts       GET /api/alerts    (Clerk session, no-store)
         |
         v
 components/LivePage.tsx       poll every 1 s; grey tile if not live
+components/AlertsView.tsx     active + recent; red critical, amber warning
+
+GET /api/cron/rules (CRON_SECRET) re-runs time-based rules when ingest is quiet.
 ```
 
 Nothing flows back toward the equipment. Ingest returns `{ accepted }` only.
@@ -71,6 +76,10 @@ TypeScript used by the Vercel app, the collector, and tests.
 | `topics.ts` | Topic and id patterns. There is no command topic. |
 | `clock.ts` | UTC timestamps. `ManualClock` lets tests jump 120 s without waiting. |
 | `config.ts` | Settings from env vars plus `config/points.json`. Stale default is 120 s. |
+| `engine.ts` | Pure rules: series in, currently-true alerts out. Skips missing points. |
+| `rules.ts` | Loads `config/rules.json` and `config/led_codes.json`. |
+| `alerts.ts` | 30-minute occurrence window + empty `notifyAlert` Phase C hook. |
+| `rules-runner.ts` | Load history, evaluate, persist. Called from ingest and cron. |
 | `models.ts` | Shared types. `BuildingGateway.write()` throws `WriteNotSupported` on purpose. |
 | `parsing.ts` | Turns MQTT JSON into a `StoredReading`. Extra keys (even `"command"`) are ignored. |
 | `store.ts` | SQLite log (`better-sqlite3`) for tests and as the `ReadingLookup` type. |
@@ -88,7 +97,7 @@ TypeScript used by the Vercel app, the collector, and tests.
 ## Next.js app (`app/`, `components/`, `middleware.ts`)
 
 Hosted on Vercel. Clerk protects every page and API route except sign-in,
-sign-up, `/api/ingest`, `/api/health`, and `/openapi.json`.
+sign-up, `/api/ingest`, `/api/health`, `/api/cron/rules`, and `/openapi.json`.
 
 | File | What it does |
 |---|---|
@@ -97,12 +106,15 @@ sign-up, `/api/ingest`, `/api/health`, and `/openapi.json`.
 | `app/(app)/` | Signed-in screens behind `AppShell`: Home, Live, History, Codes, Alerts, Ask, Settings. |
 | `app/(app)/page.tsx` | Home glance from `/api/readings`. |
 | `app/(app)/live/page.tsx` | Live tiles from `/api/readings`. |
-| `app/(app)/history` `codes` `alerts` `ask` `settings` | Styled placeholders: "Coming in a later phase". |
+| `app/(app)/alerts` | Active and recent alerts from GET `/api/alerts`. |
+| `app/(app)/history` `codes` `ask` `settings` | Styled placeholders: "Coming in a later phase". |
 | `app/sign-in/` `app/sign-up/` | Public Clerk screens, same dark look. |
 | `app/manifest.ts` | Add to Home Screen (standalone, theme-color `#05070c`). |
 | `app/globals.css` | Dark glass. Cyan = cooling, orange = heating, red = fault, grey + Stale. |
-| `app/api/ingest/route.ts` | POST only. Shared secret. Stores readings. Never returns a command. |
-| `app/api/readings/route.ts` | GET for the tiles. 401 without a Clerk session when keys are real. |
+| `app/api/ingest/route.ts` | POST only. Shared secret. Stores readings, evaluates rules. Never returns a command. |
+| `app/api/readings/route.ts` | GET for the tiles. 401 without a Clerk session when keys are real. Writes 405. |
+| `app/api/alerts/route.ts` | GET for the Alerts screen. Clerk when keys are real. Writes 405. |
+| `app/api/cron/rules/route.ts` | GET. `CRON_SECRET`. Re-evaluates stale_sensor / node_offline. |
 | `app/api/health/route.ts` | GET. Public so Vercel can ping it. |
 | `app/openapi.json/route.ts` | Documents GET-only people paths plus collector ingest. |
 | `components/AppShell.tsx` | Brand, Clerk `UserButton`, seven-link nav, Read only footer. |
@@ -138,7 +150,7 @@ Desk stand-in for the ESP32 until the board is flashed. Same topic and JSON.
 
 | File | What it does |
 |---|---|
-| `bench-publisher.ts` | Two temperatures that bump 0.1 °F every 10 s. Retain is off so stopping it lets tiles go stale. |
+| `bench-publisher.ts` | Temps plus call/amps/LED stand-ins. `--fault` holds a signature. Retain off. |
 | `cli.ts` | Starts the publisher from `npm run simulate`. |
 
 ## Config, Prisma, env
@@ -148,9 +160,12 @@ Desk stand-in for the ESP32 until the board is flashed. Same topic and JSON.
 | `config/mosquitto.conf` | Local MQTT broker: port 1883, anonymous, no persistence. Do not port-forward. |
 | `config/points.json` | See below. JSON cannot hold comments. |
 | `docker-compose.yml` | Optional Mosquitto **and** local Postgres 16 (`hvac` / `hvac` / `hvac` on 5432). |
-| `prisma/schema.prisma` | `readings` (device timestamp + `received_at`) and `collector_status`. |
-| `prisma/migrations/` | Initial migration. Apply with `npx prisma migrate deploy`. |
-| `.env.example` | Every variable, placeholders, comments on where to get each. Copy to `.env.local`. |
+| `prisma/schema.prisma` | `readings`, `collector_status`, and `alerts`. |
+| `prisma/migrations/` | Apply with `npx prisma migrate deploy` (includes the alerts table). |
+| `config/rules.json` | Versioned thresholds. Bump `version` on every change. |
+| `config/led_codes.json` | Placeholder: `0` is normal. No guessed brand table. |
+| `vercel.json` | Cron: GET `/api/cron/rules` every minute (Hobby may only run daily). |
+| `.env.example` | Every variable, placeholders, comments on where to get each. Copy to `.env.local`. Includes empty-ready `CRON_SECRET`. |
 | `.env.local` | Gitignored. Localhost:3000 + collector. |
 | `.env.production` | Committed with **empty** values. Real prod keys live in the Vercel UI. |
 | `package.json` | `npm run dev` (Next :3000), `npm run collector`, `npm test`, `postinstall` prisma generate. Node `>=20.9` (Node 24 on Windows included). `better-sqlite3` 12.x has a Node 24 win32 prebuild, so install does not need Visual Studio. |
@@ -158,13 +173,16 @@ Desk stand-in for the ESP32 until the board is flashed. Same topic and JSON.
 
 ### `config/points.json`
 
-List of tiles the page knows about, in display order. Phase 1 ships two:
+List of tiles the page knows about, in display order. Phase B ships the two
+temps plus call/amps/LED stand-ins the simulator publishes. Firmware still
+sends only the two temps; extra tiles stay missing/stale until hardware
+exists. A rule whose point is not in this file skips instead of guessing.
 
 | Field | Meaning |
 |---|---|
 | `id` | Wire name in the MQTT JSON (`return_air_temp`, `supply_air_temp`). Must match the firmware / simulator. |
 | `name` | Label on the tile ("Return air", "Supply air"). |
-| `unit` | `F` for these two temperatures. |
+| `unit` | `F`, `A`, `bool`, or `code`. |
 | `node_id` | Which ESP32 publishes it. Phase 1 is `bench`, which becomes topic `hvac/bench/reading`. |
 
 If you add a point later, add it here **and** in the firmware/simulator. A
@@ -178,7 +196,9 @@ the hub refuse to start.
 |---|---|
 | `phase1.test.ts` | The original 19 Phase 1 cases: 10 s updates, 120 s stale, no write path, bad temps hidden, GET-only people API. Frozen clock, temp SQLite — no live Mosquitto. |
 | `cloud.test.ts` | Ingest secret reject/store, Clerk 401, stale from DB-shaped rows, collector forward + retry, never publishes. |
-| `ui.test.ts` | Seven-screen shell, placeholders, stale grey styling, PWA manifest/icons. |
+| `ui.test.ts` | Seven-screen shell, placeholders, Alerts styling, stale grey styling, PWA manifest/icons. |
+| `rules.test.ts` | One case per rule (fire / no-fire / timing), 30-minute dedupe, skip if point missing. |
+| `alerts-api.test.ts` | Cron secret reject, 405 on writes, Clerk 401 on GET `/api/alerts`, ingest still `{ accepted }`. |
 
 Run with `npm test` from the repo root (after `npm install`).
 
@@ -213,7 +233,7 @@ To run tests (no broker needed):
 npm test
 ```
 
-Expect the original 19 Phase 1 tests plus the cloud/collector and UI shell cases.
+Expect the original 19 Phase 1 tests plus cloud/collector, UI shell, and Phase B rules/alerts cases.
 
 ### Common failure points
 
@@ -230,7 +250,8 @@ Expect the original 19 Phase 1 tests plus the cloud/collector and UI shell cases
 | Tiles never go stale after unplug | Retained MQTT message, or collector still flushing an old buffer | Firmware/simulator use retain off; age is cloud `received_at` |
 | `prisma migrate` fails | Empty `DATABASE_URL` / `DIRECT_URL` | `.env.local`; Docker Postgres or Neon |
 | `next build` wants Clerk | Keys look real but are invalid | Placeholders must stay placeholders, or use real keys |
-| POST `/api/readings` | People API is still GET-only | 405 on that path; ingest is `/api/ingest` with a secret |
+| POST `/api/readings` or `/api/alerts` | People API is still GET-only | 405 on those paths; ingest is `/api/ingest` with a secret |
+| Cron 401 / 503 | Missing or empty `CRON_SECRET` | `.env.local` and Vercel env; Vercel sends `Authorization: Bearer CRON_SECRET` |
 | `write()` / collector MQTT publish | There is no write path | `WriteNotSupported`; collector never calls publish |
 | Tests fail after you only added comments | A comment contained a string a test forbids | Firmware must not contain `subscribe(` or `digitalWrite(`; `LivePage.tsx` must not contain `innerHTML` |
 

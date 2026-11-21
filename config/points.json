@@ -11,6 +11,36 @@
       "name": "Supply air",
       "unit": "F",
       "node_id": "bench"
+    },
+    {
+      "id": "call_y",
+      "name": "Cooling call (Y)",
+      "unit": "bool",
+      "node_id": "bench"
+    },
+    {
+      "id": "call_g",
+      "name": "Fan call (G)",
+      "unit": "bool",
+      "node_id": "bench"
+    },
+    {
+      "id": "compressor_amps",
+      "name": "Compressor amps",
+      "unit": "A",
+      "node_id": "bench"
+    },
+    {
+      "id": "blower_amps",
+      "name": "Blower amps",
+      "unit": "A",
+      "node_id": "bench"
+    },
+    {
+      "id": "led_code",
+      "name": "Furnace LED code",
+      "unit": "code",
+      "node_id": "bench"
     }
   ]
 }

@@ -14,6 +14,7 @@ import { readingsPayload } from "@/hub/http";
 import { collectorIsFresh } from "@/hub/ingest";
 import { publicSnapshotFromMap } from "@/hub/live";
 import { PrismaReadingStore } from "@/hub/prisma-store";
+import { methodNotAllowed } from "@/hub/reject-write";
 import { getRuntime } from "@/hub/runtime-slot";
 import { dashboardUserId } from "@/hub/session";
 import { databaseConfigured, getPrisma } from "@/lib/prisma";
@@ -64,4 +65,20 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json(body, {
     headers: { "Cache-Control": "no-store" },
   });
+}
+
+export async function POST(): Promise<NextResponse> {
+  return methodNotAllowed();
+}
+
+export async function PUT(): Promise<NextResponse> {
+  return methodNotAllowed();
+}
+
+export async function PATCH(): Promise<NextResponse> {
+  return methodNotAllowed();
+}
+
+export async function DELETE(): Promise<NextResponse> {
+  return methodNotAllowed();
 }

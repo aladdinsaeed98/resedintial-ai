@@ -12,6 +12,7 @@ import { ingestSecretFromHeaders, verifyIngestSecret } from "@/hub/auth";
 import { SystemClock } from "@/hub/clock";
 import { ingestResponse, parseIngestBody } from "@/hub/ingest";
 import { getIngestSink } from "@/hub/ingest-runtime";
+import { runRulesNow } from "@/hub/rules-runner";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,5 +47,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const accepted = await store.addMany(parsed.readings);
   await store.recordCollector(parsed.mqtt_connected, receivedAt);
+  try {
+    await runRulesNow(receivedAt);
+  } catch (error) {
+    console.error("rules evaluation failed", error);
+  }
   return NextResponse.json(ingestResponse(accepted));
 }

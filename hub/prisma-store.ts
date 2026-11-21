@@ -87,6 +87,15 @@ export class PrismaReadingStore {
   async collectorStatus(): Promise<{ mqttConnected: boolean; lastIngestAt: Date } | null> {
     return this.prisma.collectorStatus.findUnique({ where: { id: 1 } });
   }
+
+  /** Samples received at or after `since`, oldest first. Used by the rules engine. */
+  async historySince(since: Date): Promise<StoredReading[]> {
+    const rows = await this.prisma.reading.findMany({
+      where: { receivedAt: { gte: since } },
+      orderBy: { receivedAt: "asc" },
+    });
+    return rows.map(toReading);
+  }
 }
 
 function toReading(row: {

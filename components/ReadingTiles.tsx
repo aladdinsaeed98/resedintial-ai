@@ -16,6 +16,8 @@ const STATUS_TEXT = {
 
 /** One decimal place, with a degree sign for F/C. Hub already hid non-live values. */
 export function formatReading(value: number, unit: string): string {
+  if (unit === "bool") return value >= 0.5 ? "On" : "Off";
+  if (unit === "code") return String(Math.round(value));
   const shown = (Math.round(value * 10) / 10).toFixed(1);
   if (unit === "F" || unit === "C") return shown + " \u00b0" + unit;
   return shown + " " + unit;

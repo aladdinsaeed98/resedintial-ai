@@ -37,7 +37,7 @@ test("app shell has seven screens and no count badges", () => {
 
 test("later-phase screens are styled placeholders", () => {
   const later = APP_SCREENS.filter((screen) => screen.laterPhase);
-  expect(later).toHaveLength(5);
+  expect(later).toHaveLength(4);
   const placeholder = fs.readFileSync(
     path.join(REPO, "components", "PlaceholderPage.tsx"),
     "utf8",
@@ -96,6 +96,24 @@ test("home glance never invents Idle and flags stale vs cooling", () => {
   );
 });
 
+test("alerts screen uses severity colors and has no write UI", () => {
+  const alerts = fs.readFileSync(path.join(REPO, "components", "AlertsView.tsx"), "utf8");
+  expect(alerts).toContain("data-severity");
+  expect(alerts).toContain("cleared");
+  expect(alerts.toLowerCase()).not.toContain("<form");
+  expect(alerts.toLowerCase()).not.toContain("<button");
+  expect(alerts).not.toContain("innerHTML");
+  const page = fs.readFileSync(path.join(REPO, "app", "(app)", "alerts", "page.tsx"), "utf8");
+  expect(page).toContain("AlertsView");
+  expect(page).not.toContain("PlaceholderPage");
+  const home = fs.readFileSync(path.join(REPO, "components", "HomeView.tsx"), "utf8");
+  expect(home).toContain("activeCount > 0");
+  expect(home).not.toMatch(/>\s*0\s*</);
+  const css = fs.readFileSync(path.join(REPO, "app", "globals.css"), "utf8");
+  expect(css).toContain('[data-severity="critical"]');
+  expect(css).toContain('[data-severity="warning"]');
+});
+
 test("PWA manifest and icons exist", () => {
   const manifest = fs.readFileSync(path.join(REPO, "app", "manifest.ts"), "utf8");
   expect(manifest).toContain('theme_color: "#05070c"');
@@ -109,4 +127,5 @@ test("PWA manifest and icons exist", () => {
   }
   const sw = fs.readFileSync(path.join(REPO, "public", "sw.js"), "utf8");
   expect(sw).toContain("never cache /api/readings");
+  expect(sw).toContain("/api/alerts");
 });

@@ -1,0 +1,4 @@
+{
+  "_note": "Placeholder until the installed board's label is typed in. 0 is normal. Any other value is an unknown code (warning), never a guessed brand table.",
+  "normal_values": [0]
+}

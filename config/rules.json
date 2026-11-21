@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "_note": "Starting placeholders. Tune against a few weeks of your own data. Bump version on every change; every alert records the version that fired it.",
+  "constants": {
+    "compressor_running_amps": 2.0,
+    "blower_running_amps": 0.8,
+    "same_occurrence_window_s": 1800,
+    "startup_grace_s": 120
+  },
+  "rules": [
+    {
+      "id": "call_no_compressor",
+      "title": "Cooling call, compressor not running",
+      "severity": "critical",
+      "enabled": true,
+      "params": { "after_s": 180 }
+    },
+    {
+      "id": "call_no_blower",
+      "title": "Call for air, blower not running",
+      "severity": "critical",
+      "enabled": true,
+      "params": { "after_s": 120 }
+    },
+    {
+      "id": "low_delta_t",
+      "title": "Low delta-T",
+      "severity": "warning",
+      "enabled": true,
+      "params": { "min_run_s": 600, "below_f": 14 }
+    },
+    {
+      "id": "high_delta_t",
+      "title": "High delta-T",
+      "severity": "warning",
+      "enabled": true,
+      "params": { "min_run_s": 600, "above_f": 24 }
+    },
+    {
+      "id": "short_cycling",
+      "title": "Short cycling",
+      "severity": "warning",
+      "enabled": true,
+      "params": { "window_s": 3600, "max_starts": 4 }
+    },
+    {
+      "id": "long_run",
+      "title": "Long run, no recovery",
+      "severity": "warning",
+      "enabled": true,
+      "params": { "run_s": 3600, "below_f": 14 }
+    },
+    {
+      "id": "board_fault",
+      "title": "Board fault code",
+      "severity": "critical",
+      "enabled": true,
+      "params": { "after_s": 30 }
+    },
+    {
+      "id": "stale_sensor",
+      "title": "Sensor not reporting",
+      "severity": "warning",
+      "enabled": true,
+      "params": { "after_s": 120 }
+    },
+    {
+      "id": "node_offline",
+      "title": "Sensor node offline",
+      "severity": "warning",
+      "enabled": true,
+      "params": { "after_s": 60 }
+    }
+  ]
+}

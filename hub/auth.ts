@@ -1,10 +1,10 @@
 /**
- * Auth helpers. Clerk protects people. The ingest secret protects the collector.
+ * Auth helpers. Clerk protects people. Shared secrets protect ingest and cron.
  *
- * Pages and GET /api/readings require a Clerk session when keys are real.
- * POST /api/ingest never uses Clerk — it uses INGEST_SECRET so the Windows
- * collector can push readings without a user login. The ingest path still
- * cannot command equipment: it only stores samples.
+ * Pages, GET /api/readings, and GET /api/alerts require a Clerk session when
+ * keys are real. POST /api/ingest uses INGEST_SECRET. GET /api/cron/rules uses
+ * CRON_SECRET (Vercel Cron sends Authorization: Bearer CRON_SECRET). Neither
+ * secret path can command equipment.
  */
 
 import { timingSafeEqual } from "node:crypto";
@@ -41,4 +41,36 @@ export function ingestSecretFromHeaders(headers: {
   get(name: string): string | null;
 }): string | null {
   return headers.get("authorization") ?? headers.get("x-ingest-secret");
+}
+
+/**
+ * Compare the Vercel Cron bearer token to CRON_SECRET.
+ * An empty configured secret is a misconfig: reject everyone.
+ */
+export function verifyCronSecret(
+  provided: string | null | undefined,
+  expected: string | undefined,
+): { ok: true } | { ok: false; status: number; error: string } {
+  const want = expected?.trim() ?? "";
+  if (!want) {
+    return { ok: false, status: 503, error: "cron is not configured" };
+  }
+  const got = (provided ?? "").trim();
+  const bearer = got.toLowerCase().startsWith("bearer ") ? got.slice(7).trim() : got;
+  if (!bearer) {
+    return { ok: false, status: 401, error: "missing cron secret" };
+  }
+  const left = Buffer.from(bearer);
+  const right = Buffer.from(want);
+  if (left.length !== right.length || !timingSafeEqual(left, right)) {
+    return { ok: false, status: 401, error: "invalid cron secret" };
+  }
+  return { ok: true };
+}
+
+/** Pull CRON_SECRET from Authorization: Bearer or x-cron-secret. */
+export function cronSecretFromHeaders(headers: {
+  get(name: string): string | null;
+}): string | null {
+  return headers.get("authorization") ?? headers.get("x-cron-secret");
 }
