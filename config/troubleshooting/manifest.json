@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "updated": "2026-11-21",
+  "note": "Curated residential split-system / gas-furnace troubleshooting. Generic HVAC practice only — no brand-specific LED meanings or charge tables. Bump version when entries change.",
+  "entries": [
+    "no_cooling.json",
+    "weak_airflow.json",
+    "short_cycling.json",
+    "frozen_coil.json",
+    "high_delta_t.json",
+    "low_delta_t.json",
+    "blower_not_running.json",
+    "compressor_not_starting.json",
+    "condensate_overflow.json",
+    "board_led_fault.json",
+    "stale_sensors.json"
+  ]
+}

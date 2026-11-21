@@ -48,11 +48,23 @@ export function openApiDocument(): Record<string, unknown> {
       "/history": { get: { summary: "History" }, head: {} },
       "/codes": { get: { summary: "Codes (later phase)" }, head: {} },
       "/alerts": { get: { summary: "Alerts" }, head: {} },
-      "/ask": { get: { summary: "Ask (coming soon)" }, head: {} },
+      "/ask": { get: { summary: "Ask troubleshooting" }, head: {} },
       "/settings": { get: { summary: "Settings (later phase)" }, head: {} },
       "/api/readings": { get: { summary: "Current readings" }, head: {} },
       "/api/alerts": { get: { summary: "Active and recent alerts (Clerk session)" }, head: {} },
       "/api/history": { get: { summary: "History rows (Clerk session)" }, head: {} },
+      "/api/ask": {
+        get: {
+          summary:
+            "Ask troubleshooting (Clerk). Prefer POST with { question }. GET is documented for discovery; writes are rejected.",
+        },
+        head: {},
+        post: {
+          summary:
+            "Ask troubleshooting (Clerk). Grounded Claude or KB template. Never returns a command.",
+        },
+      },
+      "/api/ask/history": { get: { summary: "Ask session history (Clerk)" }, head: {} },
       "/api/health": { get: { summary: "Health" }, head: {} },
       "/api/cron/rules": {
         get: { summary: "Vercel Cron rules tick (CRON_SECRET). Time-based stale/offline checks." },

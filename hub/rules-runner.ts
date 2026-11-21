@@ -8,6 +8,7 @@
  */
 
 import { persistProposed, getAlertStore } from "./alert-store";
+import { serializeReadingWindow } from "./ask/incidents";
 import { loadSettings } from "./config";
 import { evaluate, historyWindowSeconds } from "./engine";
 import { PrismaReadingStore } from "./prisma-store";
@@ -68,6 +69,7 @@ export async function runRulesNow(now: Date): Promise<RulesRunResult> {
     now,
     result.active,
     rules.constants.same_occurrence_window_s,
+    serializeReadingWindow(series),
   );
   return { evaluated: true, active: result.active.length, mutations: mutations.length };
 }

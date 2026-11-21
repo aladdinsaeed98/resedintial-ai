@@ -1,0 +1,26 @@
+{
+  "id": "short_cycling",
+  "symptom": "Short cycling",
+  "aliases": ["starts and stops", "keeps cycling", "short cycle"],
+  "rule_ids": ["short_cycling"],
+  "point_ids": ["compressor_amps", "call_y"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Thermostat short-cycle or oversized setpoint swing" },
+    { "rank": 2, "cause": "Dirty filter causing high head pressure trips" },
+    { "rank": 3, "cause": "Failing start components or low charge", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Replace the filter",
+    "Give the system several minutes between manual thermostat changes",
+    "Confirm outdoor unit has clear airflow and shade from debris",
+    "Note how many starts you hear in an hour"
+  ],
+  "tech_only": [
+    "Start capacitor diagnosis",
+    "Refrigerant charge check",
+    "Safety switch or pressure control diagnosis"
+  ],
+  "call_pro_when": "More than a few compressor starts per hour continue after filter and thermostat checks.",
+  "sources": ["docs/PLAN.md short_cycling rule (placeholder threshold)"],
+  "assumptions": ["Thresholds in rules.json are starting placeholders"]
+}

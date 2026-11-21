@@ -1,0 +1,26 @@
+{
+  "id": "blower_not_running",
+  "symptom": "Blower not running",
+  "aliases": ["fan not running", "no air from vents", "air handler quiet"],
+  "rule_ids": ["call_no_blower"],
+  "point_ids": ["call_g", "call_y", "blower_amps"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Furnace switch or door switch open" },
+    { "rank": 2, "cause": "Thermostat not calling for fan or cool" },
+    { "rank": 3, "cause": "Blower motor or capacitor failure", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Flip the furnace switch fully Off then On",
+    "Confirm the blower door is seated",
+    "Set thermostat Fan to On briefly and listen",
+    "Check the filter is not collapsed against the rack"
+  ],
+  "tech_only": [
+    "Blower capacitor or motor replacement",
+    "Control-board fan output diagnosis",
+    "Any line-voltage work inside the air handler"
+  ],
+  "call_pro_when": "A fan or cool call is present but blower amps stay near zero after door/switch checks.",
+  "sources": ["docs/PLAN.md call_no_blower rule"],
+  "assumptions": ["Optocoupler call inputs are installed when call_g/call_y are trusted"]
+}

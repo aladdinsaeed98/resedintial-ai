@@ -1,0 +1,27 @@
+{
+  "id": "weak_airflow",
+  "symptom": "Weak airflow",
+  "aliases": ["low airflow", "weak vents", "not much air"],
+  "rule_ids": ["high_delta_t", "call_no_blower", "long_run"],
+  "point_ids": ["blower_amps", "call_g", "call_y", "return_air_temp", "supply_air_temp"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Dirty or restrictive filter" },
+    { "rank": 2, "cause": "Closed or blocked registers and returns" },
+    { "rank": 3, "cause": "Blower not running on a fan or cool call" },
+    { "rank": 4, "cause": "Dirty indoor coil or duct restriction", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Replace the filter with the correct size and orientation",
+    "Open all supply registers and clear furniture from returns",
+    "Confirm the thermostat Fan setting is On or Auto as intended",
+    "Listen at the air handler for blower noise during a call"
+  ],
+  "tech_only": [
+    "Blower motor or capacitor service",
+    "Coil cleaning inside the cabinet",
+    "Duct static-pressure diagnosis"
+  ],
+  "call_pro_when": "Filter and vents are clear but blower amps stay near zero during a call, or high delta-T continues after a clean filter.",
+  "sources": ["docs/PLAN.md high delta-T / call_no_blower rules"],
+  "assumptions": ["Airflow problems are checked before refrigerant work"]
+}

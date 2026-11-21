@@ -24,6 +24,3 @@ export const APP_SCREENS: readonly AppScreen[] = [
 ];
 
 export const PLACEHOLDER_COPY = "Coming in a later phase";
-
-export const ASK_COMING_SOON =
-  "Coming soon: AI troubleshooting. Answers will be grounded in live readings only.";

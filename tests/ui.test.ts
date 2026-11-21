@@ -13,7 +13,7 @@ import { formatReading } from "../hub/format-reading";
 import { glanceFromPoints } from "../hub/glance";
 import { publicSnapshotFromMap } from "../hub/live";
 import { groupPoints } from "../hub/tile-groups";
-import { APP_SCREENS, ASK_COMING_SOON, PLACEHOLDER_COPY } from "../lib/screens";
+import { APP_SCREENS, PLACEHOLDER_COPY } from "../lib/screens";
 import { benchReadings } from "../simulator/bench-publisher";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -64,13 +64,15 @@ test("later-phase screens are styled placeholders", () => {
   }
 });
 
-test("ask screen is a coming-soon AI placeholder", () => {
+test("ask screen is a grounded chat UI", () => {
   const page = fs.readFileSync(path.join(REPO, "app", "(app)", "ask", "page.tsx"), "utf8");
-  expect(page).toContain("AskPlaceholder");
+  expect(page).toContain("AskView");
   expect(page).not.toContain("PlaceholderPage");
-  const ask = fs.readFileSync(path.join(REPO, "components", "AskPlaceholder.tsx"), "utf8");
-  expect(ask).toContain("ASK_COMING_SOON");
-  expect(ASK_COMING_SOON.toLowerCase()).toContain("ai troubleshooting");
+  const ask = fs.readFileSync(path.join(REPO, "components", "AskView.tsx"), "utf8");
+  expect(ask).toContain("/api/ask");
+  expect(ask).toContain("Based on");
+  expect(ask).toContain("Troubleshooting history");
+  expect(ask.toLowerCase()).toContain("monitor only");
 });
 
 test("stale tiles stay grey and hide the value", () => {
