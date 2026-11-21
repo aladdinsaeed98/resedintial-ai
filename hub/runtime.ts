@@ -1,12 +1,12 @@
 /**
- * Process-wide hub runtime: one store, one MQTT gateway, one clock.
+ * Test/local helper that builds a SQLite store + MQTT gateway.
  *
- * Next.js App Router can evaluate modules more than once (dev HMR, a custom
- * server plus a bundled route). We keep the live objects on globalThis so
- * GET /api/readings and the MQTT subscriber share the same SQLite connection.
+ * The Vercel app does not call createRuntime(). Production GET /api/readings
+ * talks to Prisma. Tests call setRuntime() so the route handlers reuse the
+ * same ManualClock and temp database as the Phase 1 suite.
  *
- * server.ts calls startRuntime() before listening. Tests call createRuntime()
- * with startMqtt=false and a temp database.
+ * This module must never start MQTT on its own — that would try to connect
+ * from a serverless function.
  */
 
 import type { Clock } from "./clock";
@@ -14,15 +14,12 @@ import { SystemClock } from "./clock";
 import type { Settings } from "./config";
 import { loadSettings } from "./config";
 import { MqttGateway } from "./gateway";
+import { clearRuntime, getRuntime, setRuntime } from "./runtime-slot";
+import type { HubRuntime } from "./runtime-types";
 import { ReadingStore } from "./store";
 
-export interface HubRuntime {
-  settings: Settings;
-  store: ReadingStore;
-  clock: Clock;
-  gateway: MqttGateway;
-  ownsStore: boolean;
-}
+export type { HubRuntime } from "./runtime-types";
+export { getRuntime, setRuntime };
 
 export interface RuntimeOptions {
   settings?: Settings;
@@ -31,13 +28,7 @@ export interface RuntimeOptions {
   startMqtt?: boolean;
 }
 
-const GLOBAL_KEY = "__hvacHubRuntime";
-
-type GlobalRuntime = typeof globalThis & {
-  [GLOBAL_KEY]?: HubRuntime;
-};
-
-/** Build a runtime. Does not store it globally unless startRuntime() is used. */
+/** Build a runtime. Tests pass startMqtt=false. */
 export function createRuntime(options: RuntimeOptions = {}): HubRuntime {
   const settings = options.settings ?? loadSettings();
   const clock = options.clock ?? new SystemClock();
@@ -50,38 +41,9 @@ export function createRuntime(options: RuntimeOptions = {}): HubRuntime {
   return { settings, store, clock, gateway, ownsStore };
 }
 
-/** Start (or reuse) the process-wide runtime and subscribe to MQTT. */
-export function startRuntime(options: RuntimeOptions = {}): HubRuntime {
-  const g = globalThis as GlobalRuntime;
-  if (!g[GLOBAL_KEY]) {
-    g[GLOBAL_KEY] = createRuntime({ startMqtt: true, ...options });
-  }
-  return g[GLOBAL_KEY];
-}
-
-/** The runtime the App Router routes use. Lazily starts MQTT if needed. */
-export function getRuntime(): HubRuntime {
-  const g = globalThis as GlobalRuntime;
-  if (!g[GLOBAL_KEY]) {
-    g[GLOBAL_KEY] = createRuntime({ startMqtt: true });
-  }
-  return g[GLOBAL_KEY];
-}
-
-/** Tests inject a ManualClock and a temp database through this. */
-export function setRuntime(runtime: HubRuntime | undefined): void {
-  const g = globalThis as GlobalRuntime;
-  if (runtime) {
-    g[GLOBAL_KEY] = runtime;
-  } else {
-    delete g[GLOBAL_KEY];
-  }
-}
-
 /** Disconnect MQTT and close SQLite when this process owns them. */
 export function stopRuntime(runtime?: HubRuntime): void {
-  const g = globalThis as GlobalRuntime;
-  const current = runtime ?? g[GLOBAL_KEY];
+  const current = runtime ?? getRuntime();
   if (!current) {
     return;
   }
@@ -89,7 +51,7 @@ export function stopRuntime(runtime?: HubRuntime): void {
   if (current.ownsStore) {
     current.store.close();
   }
-  if (!runtime || current === g[GLOBAL_KEY]) {
-    delete g[GLOBAL_KEY];
+  if (!runtime || current === getRuntime()) {
+    clearRuntime();
   }
 }

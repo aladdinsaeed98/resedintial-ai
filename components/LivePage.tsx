@@ -5,9 +5,10 @@
  * A number is shown only when status === "live" and value is a number. Stale
  * tiles say "Stale" and go grey via CSS. This page cannot command equipment.
  *
- * If tiles freeze, the hub process or Mosquitto is down (see the banner).
+ * If tiles freeze, the collector or Mosquitto is down (see the banner).
  * If they never go stale after you stop the simulator, check
- * snapshot.stale_after_seconds (should be 120).
+ * snapshot.stale_after_seconds (should be 120). Age uses received_at
+ * from the cloud database, not the node's own clock.
  */
 
 "use client";
@@ -100,7 +101,7 @@ export function LivePage() {
         setBanner(body.mqtt_connected ? "" : "MQTT broker not connected.");
         setSubtitle(
           body.system_name +
-            " · hub " +
+            " · " +
             body.server_time +
             " · stale after " +
             staleLabel(body.stale_after_seconds),

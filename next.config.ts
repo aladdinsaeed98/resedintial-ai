@@ -1,15 +1,14 @@
 /**
- * Next.js config for the HVAC hub.
+ * Next.js config for the Vercel app.
  *
- * better-sqlite3 and mqtt are native / Node-only. They must stay outside the
- * webpack bundle so the live page (a client component) never loads them.
- * The custom server in server.ts is what actually starts MQTT.
+ * better-sqlite3 and mqtt stay on the Windows/Pi collector, not in the
+ * serverless bundle. App Router routes talk to Prisma + Postgres.
  */
 
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3", "mqtt"],
+  serverExternalPackages: ["better-sqlite3", "mqtt", "@prisma/client"],
 };
 
 export default nextConfig;

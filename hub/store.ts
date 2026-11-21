@@ -14,6 +14,13 @@ import Database from "better-sqlite3";
 import { formatTimestamp, parseTimestamp } from "./clock";
 import { Quality, type StoredReading } from "./models";
 
+/** Anything MqttGateway can append to. The collector buffer implements this. */
+export interface ReadingLookup {
+  add(reading: StoredReading): void;
+  latest(pointId: string): StoredReading | null;
+  latestMap(): Record<string, StoredReading>;
+}
+
 interface ReadingRow {
   point_id: string;
   node_id: string;
@@ -25,7 +32,7 @@ interface ReadingRow {
   time_source: string;
 }
 
-export class ReadingStore {
+export class ReadingStore implements ReadingLookup {
   readonly path: string;
   private readonly db: Database.Database;
   private readonly insertStmt: Database.Statement;

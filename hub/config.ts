@@ -19,7 +19,8 @@ export const DEFAULT_MQTT_HOST = "127.0.0.1";
 export const DEFAULT_MQTT_PORT = 1883;
 export const DEFAULT_SYSTEM_NAME = "Bench";
 export const DEFAULT_HTTP_HOST = "0.0.0.0";
-export const DEFAULT_HTTP_PORT = 8000;
+export const DEFAULT_HTTP_PORT = 3000;
+export const DEFAULT_INGEST_URL = "http://localhost:3000/api/ingest";
 
 /** One tile on the live page, loaded from config/points.json. */
 export interface PointSpec {
@@ -29,7 +30,7 @@ export interface PointSpec {
   node_id: string;
 }
 
-/** Frozen hub settings for one process. */
+/** Frozen hub / collector settings for one process. */
 export interface Settings {
   mqtt_host: string;
   mqtt_port: number;
@@ -39,6 +40,8 @@ export interface Settings {
   points: readonly PointSpec[];
   host: string;
   port: number;
+  ingest_url: string;
+  ingest_secret: string;
 }
 
 /**
@@ -170,5 +173,7 @@ export function loadSettings(
     points: loadPoints(pointsFile),
     host: (source.HVAC_HOST ?? DEFAULT_HTTP_HOST).trim() || DEFAULT_HTTP_HOST,
     port: positiveInt(source, "HVAC_PORT", DEFAULT_HTTP_PORT),
+    ingest_url: (source.HUB_INGEST_URL ?? DEFAULT_INGEST_URL).trim() || DEFAULT_INGEST_URL,
+    ingest_secret: (source.INGEST_SECRET ?? "").trim(),
   };
 }

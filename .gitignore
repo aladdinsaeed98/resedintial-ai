@@ -20,4 +20,6 @@ firmware/bench_node/config.h
 *.db-shm
 secrets.yaml
 .env
-*.env
+.env.local
+.env*.local
+# .env.example and .env.production (empty keys) are committed on purpose.

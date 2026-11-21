@@ -21,45 +21,50 @@ DS18B20 probes (or the simulator)
         v
 MQTT topic  hvac/<node>/reading     (Phase 1 node id is "bench")
         |
-        |  Mosquitto on port 1883
+        |  Mosquitto on port 1883 (LAN only — never port-forward)
         v
-hub/gateway.ts   listens only; write() always throws WriteNotSupported
+collector/ + hub/gateway.ts   listens only; write() always throws
+        |                     WriteNotSupported; never publishes
+        v
+collector/buffer.ts           SQLite retry queue on the Windows PC / Pi
+        |
+        |  outbound HTTPS POST /api/ingest
+        |  Authorization: Bearer INGEST_SECRET
+        v
+app/api/ingest/route.ts       stamps received_at (Vercel clock), Prisma insert
         |
         v
-hub/parsing.ts   drop bad JSON / wrong topic; mark out-of-range as BAD
+Postgres (Vercel Marketplace / Neon)
         |
         v
-hub/store.ts     append one SQLite row (received_at = hub clock)
+hub/live.ts                   age from received_at; after 120 s the number
+                              is stripped
         |
         v
-hub/live.ts      age from received_at; after 120 s the number is stripped
+app/api/readings/route.ts     GET /api/readings  (Clerk session, no-store)
         |
         v
-app/api/readings/route.ts   GET /api/readings  (Cache-Control: no-store)
-        |
-        v
-components/LivePage.tsx     poll every 1 s; grey tile if not live
+components/LivePage.tsx       poll every 1 s; grey tile if not live
 ```
 
-Nothing flows back toward the equipment.
+Nothing flows back toward the equipment. Ingest returns `{ accepted }` only.
 
-## Why a custom Node server
+## Why a local collector plus Vercel
 
-`server.ts` starts the MQTT subscriber, then serves Next.js.
+Vercel functions start per request and cannot keep an MQTT connection to the
+house. Opening port 1883 on the router would put Mosquitto on the internet.
 
-Next.js App Router handlers run per HTTP request. They are a bad home for a
-socket that must stay up all day. A second worker process sharing SQLite
-would also be sound (the page would always read the latest row from disk).
-One process is simpler for a PC or Pi hub: one `better-sqlite3` connection,
-and `mqtt_connected` is just `gateway.connected` in memory.
+The collector is the old long-lived subscriber, now a small process that only
+makes **outbound** HTTPS calls. If the home internet drops, rows sit in the
+local SQLite buffer until ingest succeeds. A delayed retry is still "live"
+because stale uses the server's `received_at`, not the node's timestamp.
 
-`npm run hub` is that custom server. Do not expect `next start` alone to
-subscribe to Mosquitto.
+`npm run dev` is Next.js on http://localhost:3000. `npm run collector` is the
+MQTT process. `next start` on Vercel does not subscribe to Mosquitto.
 
 ## Hub (`hub/`)
 
-TypeScript modules used by the custom server and by App Router route
-handlers. Run the process with `npm run hub`.
+TypeScript used by the Vercel app, the collector, and tests.
 
 | File | What it does |
 |---|---|
@@ -68,34 +73,56 @@ handlers. Run the process with `npm run hub`.
 | `config.ts` | Settings from env vars plus `config/points.json`. Stale default is 120 s. |
 | `models.ts` | Shared types. `BuildingGateway.write()` throws `WriteNotSupported` on purpose. |
 | `parsing.ts` | Turns MQTT JSON into a `StoredReading`. Extra keys (even `"command"`) are ignored. |
-| `store.ts` | SQLite log (`better-sqlite3`). The page only reads the latest row per point. |
+| `store.ts` | SQLite log (`better-sqlite3`) for tests and as the `ReadingLookup` type. |
+| `prisma-store.ts` | Postgres log the Vercel app actually uses. |
 | `live.ts` | Decides live / stale / bad / missing. Hides the number unless status is live. |
 | `gateway.ts` | MQTT listener (mqtt.js). Subscribes to `hvac/+/reading`. Does not publish. |
-| `http.ts` | GET/HEAD only. Write methods are 405. Builds the `/api/readings` JSON. |
-| `runtime.ts` | One store + gateway on `globalThis` so Next.js and MQTT share them. |
+| `http.ts` | OpenAPI + GET payload helper. People-facing paths are GET/HEAD. |
+| `auth.ts` | Ingest secret check (timing-safe). Clerk helpers live in `clerk-keys.ts`. |
+| `clerk-keys.ts` | True only when Clerk keys look real (not placeholders). Safe for Edge middleware. |
+| `ingest.ts` | Validates a collector POST. Response is `{ accepted }` only. |
+| `ingest-runtime.ts` | Prisma sink, or a memory sink in tests. |
+| `session.ts` | Clerk user for GET `/api/readings`. Tests mock this. |
+| `runtime.ts` / `runtime-slot.ts` | Test-only SQLite + gateway injection. Production does not start MQTT. |
 
-## Next.js app (`app/`, `components/`, `server.ts`)
+## Next.js app (`app/`, `components/`, `middleware.ts`)
+
+Hosted on Vercel. Clerk protects every page and API route except sign-in,
+sign-up, `/api/ingest`, `/api/health`, and `/openapi.json`.
 
 | File | What it does |
 |---|---|
-| `server.ts` | Process entry: start MQTT, wrap Next.js, reject POST. First process to check if the page never loads. |
-| `app/layout.tsx` | HTML shell and CSS import. |
-| `app/page.tsx` | Renders the live page. No forms or buttons. |
+| `middleware.ts` | Clerk `auth.protect()` when keys are configured; no-op for `next build` placeholders. |
+| `app/layout.tsx` | HTML shell. Wraps `ClerkProvider` only when keys are real. |
+| `app/page.tsx` | Signed-in dashboard: `UserButton` + live tiles. |
+| `app/sign-in/` `app/sign-up/` | Public Clerk screens. |
 | `app/globals.css` | White tile = live. Grey = anything else (stale, bad, missing). |
-| `app/api/readings/route.ts` | GET `/api/readings` for the tiles. |
-| `app/api/health/route.ts` | GET `/api/health`. |
-| `app/openapi.json/route.ts` | GET-only OpenAPI so tests can see there is no write path. |
+| `app/api/ingest/route.ts` | POST only. Shared secret. Stores readings. Never returns a command. |
+| `app/api/readings/route.ts` | GET for the tiles. 401 without a Clerk session when keys are real. |
+| `app/api/health/route.ts` | GET. Public so Vercel can ping it. |
+| `app/openapi.json/route.ts` | Documents GET-only people paths plus collector ingest. |
 | `components/LivePage.tsx` | Polls `/api/readings` every 1 s. Shows a number only for live numeric values. |
+
+## Local collector (`collector/`, `server.ts`)
+
+Runs on the Windows PC or Pi next to Mosquitto. Outbound only.
+
+| File | What it does |
+|---|---|
+| `server.ts` | Process entry: `npm run collector` / `npm run hub`. |
+| `collector/cli.ts` | Load `.env.local`, subscribe, flush every 2 s. Never publishes. |
+| `collector/buffer.ts` | SQLite pending queue. Survives a Wi-Fi drop. |
+| `collector/forwarder.ts` | POST batch to ingest. Ignores extra keys on the JSON response. |
 
 ## Firmware (`firmware/bench_node/`)
 
 Arduino sketch for one ESP32 and two DS18B20 probes on GPIO 4. Unchanged
-by the TypeScript port.
+by the TypeScript / Vercel work.
 
 | File | What it does |
 |---|---|
 | `bench_node.ino` | Read probes, publish JSON every 10 s, never listen for inbound MQTT. Serial at 115200 is the debug console. |
-| `config.h.example` | Template for Wi-Fi and the hub LAN IP. Copy to `config.h` (gitignored) and fill in. |
+| `config.h.example` | Template for Wi-Fi and the **LAN IP of Mosquitto**. Copy to `config.h` (gitignored) and fill in. |
 
 Power from USB. 4.7 kΩ pull-up to **3.3 V**, not 5 V. Do not tap the furnace transformer.
 
@@ -108,14 +135,19 @@ Desk stand-in for the ESP32 until the board is flashed. Same topic and JSON.
 | `bench-publisher.ts` | Two temperatures that bump 0.1 °F every 10 s. Retain is off so stopping it lets tiles go stale. |
 | `cli.ts` | Starts the publisher from `npm run simulate`. |
 
-## Config (`config/`) and other run files
+## Config, Prisma, env
 
 | File | What it does |
 |---|---|
 | `config/mosquitto.conf` | Local MQTT broker: port 1883, anonymous, no persistence. Do not port-forward. |
 | `config/points.json` | See below. JSON cannot hold comments. |
-| `docker-compose.yml` | Optional `docker compose up -d` to run Mosquitto with that config. |
-| `package.json` | Node packages and scripts: `npm test`, `npm run hub`, `npm run simulate`. |
+| `docker-compose.yml` | Optional Mosquitto **and** local Postgres 16 (`hvac` / `hvac` / `hvac` on 5432). |
+| `prisma/schema.prisma` | `readings` (device timestamp + `received_at`) and `collector_status`. |
+| `prisma/migrations/` | Initial migration. Apply with `npx prisma migrate deploy`. |
+| `.env.example` | Every variable, placeholders, comments on where to get each. Copy to `.env.local`. |
+| `.env.local` | Gitignored. Localhost:3000 + collector. |
+| `.env.production` | Committed with **empty** values. Real prod keys live in the Vercel UI. |
+| `package.json` | `npm run dev` (Next :3000), `npm run collector`, `npm test`, `postinstall` prisma generate. |
 | `vitest.config.ts` | Tells Vitest to collect `tests/` and run them in Node. |
 
 ### `config/points.json`
@@ -138,7 +170,8 @@ the hub refuse to start.
 
 | File | What it does |
 |---|---|
-| `phase1.test.ts` | The Phase 1 pass in software: 10 s updates, 120 s stale, no write path, bad temps hidden, GET-only API. Uses a frozen clock and a temp database — no live Mosquitto required. |
+| `phase1.test.ts` | The original 19 Phase 1 cases: 10 s updates, 120 s stale, no write path, bad temps hidden, GET-only people API. Frozen clock, temp SQLite — no live Mosquitto. |
+| `cloud.test.ts` | Ingest secret reject/store, Clerk 401, stale from DB-shaped rows, collector forward + retry, never publishes. |
 
 Run with `npm test` from the repo root (after `npm install`).
 
@@ -146,20 +179,23 @@ Run with `npm test` from the repo root (after `npm install`).
 
 ### Where logs go
 
-- **Hub** (`npm run hub`): stdout. Look for `reading return_air_temp=...`, `dropped mqtt payload`, `mqtt connect failed`, `mqtt subscribed to hvac/+/reading`.
+- **Next.js** (`npm run dev` / Vercel): stdout / Vercel logs. Look for ingest 401s and Prisma errors.
+- **Collector** (`npm run collector`): stdout. `forwarded N reading(s)` or `ingest retry`.
 - **Simulator** (`npm run simulate`): stdout. `published {...}` means it sent; `broker ... not up yet` means Mosquitto is not running.
 - **ESP32**: Arduino Serial Monitor at 115200. `wifi down`, `mqtt down`, `probes: 0`, `missing return_air_temp` are the usual clues.
 - **Mosquitto**: the Windows service, the terminal where you ran `mosquitto -c config/mosquitto.conf`, or `docker compose logs`.
-- **Browser**: the banner on the page (`Can't reach the hub.` or `MQTT broker not connected.`) plus the Network tab for `/api/readings`.
-- **SQLite**: not a log file. Path is `%LOCALAPPDATA%\hvac-monitor\hvac.db` on Windows, or `~/.local/share/hvac-monitor/hvac.db` elsewhere. Override with `HVAC_DB`.
+- **Browser**: Clerk sign-in first; then the banner (`Can't reach the hub.` or `MQTT broker not connected.`) plus the Network tab for `/api/readings`.
+- **Local SQLite buffer**: `%LOCALAPPDATA%\hvac-monitor\hvac.db` on Windows, or `~/.local/share/hvac-monitor/hvac.db` elsewhere. Override with `HVAC_DB`. This is the collector retry queue, not Postgres.
+- **Postgres**: Neon / Vercel dashboard, or `docker compose logs postgres`.
 
 ### Run the stack
 
-Three terminals, from the repo root, after `npm install` and `npm run build`:
+From the repo root, after `Copy-Item .env.example .env.local`, filling keys, `npm install`, and `npx prisma migrate deploy`:
 
-1. Broker: Windows Mosquitto service, **or** `mosquitto -c config/mosquitto.conf`, **or** `docker compose up -d`
-2. Hub: `npm run hub` then open http://127.0.0.1:8000
-3. Fake node: `npm run simulate`
+1. Broker: Windows Mosquitto service, **or** `mosquitto -c config/mosquitto.conf`, **or** `docker compose up -d mosquitto`
+2. App: `npm run dev` then open http://localhost:3000 and sign in
+3. Collector: `npm run collector`
+4. Fake node: `npm run simulate`
 
 The two temperatures should step every 10 seconds. Stop the simulator; both
 tiles turn grey and say **Stale** within 2 minutes, and the numbers disappear.
@@ -170,29 +206,31 @@ To run tests (no broker needed):
 npm test
 ```
 
-Expect 19 passed.
+Expect the original 19 Phase 1 tests plus the cloud/collector cases.
 
 ### Common failure points
 
 | What you see | Likely cause | Check first |
 |---|---|---|
-| Page: "Can't reach the hub." | Hub process not running | `npm run hub`; port 8000 free; `npm run build` already ran |
-| Page: "MQTT broker not connected." | Mosquitto down or wrong host | Broker terminal / Windows service; `HVAC_MQTT_HOST` |
-| Tiles stay "No reading" with hub up | Nothing is publishing | Simulator running, or ESP32 Serial |
-| Simulator: "broker not up yet" | Mosquitto not listening on 1883 | Windows service, `docker compose up -d`, or mosquitto command |
+| Redirected to `/sign-in` | No Clerk session, or keys missing in `.env.local` | Clerk dashboard; `NEXT_PUBLIC_CLERK_*` and `CLERK_SECRET_KEY` |
+| Page: "Can't reach the hub." | Next.js not running, or `/api/readings` 401 | `npm run dev`; Network tab; sign in |
+| Page: "MQTT broker not connected." | Collector not running or ingest failing | `npm run collector`; `INGEST_SECRET` matches; `HUB_INGEST_URL` |
+| Tiles stay "No reading" with app up | Nothing reaching ingest | Simulator / ESP32; collector logs; Mosquitto |
+| Simulator: "broker not up yet" | Mosquitto not listening on 1883 | Windows service, `docker compose up -d mosquitto` |
 | ESP32: `wifi down` | Bad SSID/password, or 5 GHz-only AP | `config.h`; 2.4 GHz Wi-Fi |
-| ESP32: `mqtt down` | `MQTT_HOST` is not the hub's LAN IP | Not `127.0.0.1` on the board; ping the PC |
+| ESP32: `mqtt down` | `MQTT_HOST` is not the PC's LAN IP | Not `127.0.0.1` on the board; not a Vercel URL |
 | ESP32: `probes: 0` / `missing ...` | Wiring, 5 V on data, missing 4.7 kΩ | GPIO 4, 3.3 V pull-up, shared GND |
-| Tiles never go stale after unplug | Retained MQTT message, or hub clock | Firmware/simulator use retain off; age is `received_at` |
-| Tiles go stale while the node is up | Wi-Fi drop, or hub not receiving | Hub logs for `dropped mqtt payload`; topic must be `hvac/bench/reading` |
-| Number looks frozen but not grey | Browser cache | API sends `Cache-Control: no-store`; hard-refresh |
-| Hub won't start, error about points | Bad `points.json` | Duplicate id, empty name, invalid characters |
-| `write()` / POST `/api/readings` | There is no write path | 405 on POST; `WriteNotSupported` in TypeScript — that is the safety rule |
+| Tiles never go stale after unplug | Retained MQTT message, or collector still flushing an old buffer | Firmware/simulator use retain off; age is cloud `received_at` |
+| `prisma migrate` fails | Empty `DATABASE_URL` / `DIRECT_URL` | `.env.local`; Docker Postgres or Neon |
+| `next build` wants Clerk | Keys look real but are invalid | Placeholders must stay placeholders, or use real keys |
+| POST `/api/readings` | People API is still GET-only | 405 on that path; ingest is `/api/ingest` with a secret |
+| `write()` / collector MQTT publish | There is no write path | `WriteNotSupported`; collector never calls publish |
 | Tests fail after you only added comments | A comment contained a string a test forbids | Firmware must not contain `subscribe(` or `digitalWrite(`; `LivePage.tsx` must not contain `innerHTML` |
 
 ### Safety reminders while debugging
 
 - Do not flash the board with a sketch that listens for commands or drives GPIO into the furnace.
-- Do not port-forward 1883 or 8000 on the router.
-- Do not commit `firmware/bench_node/config.h` (it has the Wi-Fi password).
+- Do not port-forward 1883 on the router.
+- Do not commit `firmware/bench_node/config.h` (it has the Wi-Fi password) or `.env.local`.
 - A stale tile is not "the last known good temp." It means we do not know the current temp.
+- Ingest storing a row in Postgres is storage, not equipment control. Returning a command from ingest is not allowed.

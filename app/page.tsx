@@ -1,12 +1,26 @@
 /**
- * Live page shell. Title, banner, tile grid, "Read only" footer.
+ * Signed-in dashboard. Live tiles plus Clerk account chrome.
  *
- * No HTML form, input, or button elements. This page cannot start, stop, or
- * change equipment. Tiles are drawn by LivePage from GET /api/readings.
+ * UserButton is sign-out only — it cannot start, stop, or change equipment.
+ * Tiles are drawn by LivePage from GET /api/readings. No HVAC forms.
  */
 
+import { UserButton } from "@clerk/nextjs";
+
+import { clerkKeysConfigured } from "@/hub/clerk-keys";
 import { LivePage } from "../components/LivePage";
 
+export const dynamic = "force-dynamic";
+
 export default function Page() {
-  return <LivePage />;
+  return (
+    <>
+      {clerkKeysConfigured() ? (
+        <div className="account">
+          <UserButton />
+        </div>
+      ) : null}
+      <LivePage />
+    </>
+  );
 }

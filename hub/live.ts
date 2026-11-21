@@ -12,7 +12,7 @@
 import { formatTimestamp } from "./clock";
 import type { PointSpec, Settings } from "./config";
 import { Quality, type StoredReading } from "./models";
-import type { ReadingStore } from "./store";
+import type { ReadingLookup } from "./store";
 
 export type LiveStatus = "missing" | "live" | "stale" | "bad" | "unknown";
 
@@ -57,13 +57,12 @@ export function asPublicDict(point: LivePoint): Record<string, unknown> {
   };
 }
 
-/** One LivePoint per configured id, then any extra ids the store has seen. */
-export function collectLivePoints(
+/** Same as collectLivePoints when you already have latestMap (Prisma is async). */
+export function collectLivePointsFromMap(
   settings: Settings,
-  store: ReadingStore,
+  latest: Record<string, StoredReading>,
   now: Date,
 ): LivePoint[] {
-  const latest = store.latestMap();
   const ordered = settings.points.map((spec) => spec.id);
   const extras = Object.keys(latest)
     .filter((pointId) => !ordered.includes(pointId))
@@ -80,10 +79,19 @@ export function collectLivePoints(
   );
 }
 
+/** One LivePoint per configured id, then any extra ids the store has seen. */
+export function collectLivePoints(
+  settings: Settings,
+  store: ReadingLookup,
+  now: Date,
+): LivePoint[] {
+  return collectLivePointsFromMap(settings, store.latestMap(), now);
+}
+
 /** Classify one point. Returns null only when the id is unknown and unstored. */
 export function livePointFor(
   settings: Settings,
-  store: ReadingStore,
+  store: ReadingLookup,
   pointId: string,
   now: Date,
 ): LivePoint | null {
@@ -95,19 +103,28 @@ export function livePointFor(
   return classify(spec, reading ?? undefined, now, settings.stale_after_seconds, pointId);
 }
 
-/** Snapshot body without mqtt_connected (the gateway adds that). */
-export function publicSnapshot(
+/** Snapshot body without mqtt_connected (the gateway or collector status adds that). */
+export function publicSnapshotFromMap(
   settings: Settings,
-  store: ReadingStore,
+  latest: Record<string, StoredReading>,
   now: Date,
 ): PublicSnapshot {
-  const points = collectLivePoints(settings, store, now);
+  const points = collectLivePointsFromMap(settings, latest, now);
   return {
     system_name: settings.system_name,
     server_time: formatTimestamp(now),
     stale_after_seconds: settings.stale_after_seconds,
     points: points.map(asPublicDict),
   };
+}
+
+/** Snapshot body without mqtt_connected (the gateway adds that). */
+export function publicSnapshot(
+  settings: Settings,
+  store: ReadingLookup,
+  now: Date,
+): PublicSnapshot {
+  return publicSnapshotFromMap(settings, store.latestMap(), now);
 }
 
 /**

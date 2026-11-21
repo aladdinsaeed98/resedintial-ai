@@ -1,8 +1,8 @@
 /**
- * GET /openapi.json — documents that every path is GET/HEAD only.
+ * GET /openapi.json — people-facing paths are GET/HEAD only.
  *
- * The Python FastAPI hub exposed this automatically. We keep a small static
- * spec so tests (and a human) can still see there is no write operation.
+ * POST /api/ingest is the collector storage path (secret, readings only).
+ * It is not a command channel.
  */
 
 import { NextResponse } from "next/server";

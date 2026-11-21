@@ -1,10 +1,14 @@
 /**
- * Root layout for the live page. Display only: no forms, no buttons.
+ * Root layout. Clerk wraps the tree when keys are real.
  *
- * Data flow ends here: GET /api/readings -> LivePage -> these tiles.
+ * Placeholder env (empty .env.production, no .env.local yet) skips Clerk so
+ * `next build` does not need an account. The dashboard is still monitor-only.
  */
 
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+
+import { clerkKeysConfigured } from "@/hub/clerk-keys";
 
 import "./globals.css";
 
@@ -17,9 +21,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
+  const tree = (
     <html lang="en">
       <body>{children}</body>
     </html>
   );
+  if (!clerkKeysConfigured()) {
+    return tree;
+  }
+  return <ClerkProvider>{tree}</ClerkProvider>;
 }

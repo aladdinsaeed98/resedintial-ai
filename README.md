@@ -1,52 +1,86 @@
 # Residential HVAC Monitor — phase 1
 
-Monitor-only bench for one ESP32 and two DS18B20 probes. The node publishes readings. The hub stores them and serves a page. Nothing in this project can turn equipment on, off, or change a setting.
+Monitor-only bench for one ESP32 and two DS18B20 probes. The node publishes readings on the home LAN. A small **local collector** forwards them outbound over HTTPS. A **Next.js app on Vercel** stores them in Postgres and shows a signed-in dashboard. Nothing in this project can turn equipment on, off, or change a setting.
 
-A reading is `{point, value, unit, timestamp, quality}` on `hvac/{node}/reading`. The page shows the number while samples are arriving, and replaces it with **Stale** when a point has been silent for 2 minutes. The last number is not left on screen.
+A reading is `{point, value, unit, timestamp, quality}` on `hvac/{node}/reading`. The dashboard shows the number while samples are arriving, and replaces it with **Stale** when a point has been silent for 2 minutes (`received_at` from the cloud, not the node's clock). The last number is not left on screen.
 
-The hub is a **Next.js (App Router, TypeScript)** app. A custom Node server starts the MQTT subscriber as soon as the process starts, then serves the App Router page and `GET /api/readings`. The hub never publishes on MQTT. Phase 2 (install, history charts) is not started.
+Phase 2 (install, history charts) is not started.
+
+## Architecture (why two processes)
+
+Vercel is serverless. It cannot hold a long-lived MQTT socket to Mosquitto on the home LAN. Port **1883 must never be port-forwarded**.
+
+```text
+ESP32 / simulator  --MQTT-->  Mosquitto :1883 (LAN only)
+                                    |
+                                    v
+                         local collector (Windows PC or Pi)
+                         subscribe hvac/+/reading
+                         never publishes
+                                    |
+                                    | outbound HTTPS POST /api/ingest
+                                    | Authorization: Bearer INGEST_SECRET
+                                    | local SQLite buffer + retry if offline
+                                    v
+                         Vercel Next.js + Clerk + Prisma/Postgres
+                         dashboard GET /api/readings (poll)
+```
+
+A webhook the other way (Mosquitto bridging inbound) would mean opening the house to the internet. Outbound HTTPS from a machine that already sits next to the broker is the safer shape.
 
 ## Software pass
 
 Needs Node.js 20 or newer. In PowerShell, from the repo folder:
 
 ```powershell
+Copy-Item .env.example .env.local
+# paste Clerk, DATABASE_URL / DIRECT_URL, and INGEST_SECRET into .env.local
 npm install
+npx prisma migrate deploy
 npm test
 npm run build
 ```
 
-`npm test` (Vitest) checks the 10-second update path, the 2-minute stale cutoff, and that stale or bad-quality numbers are absent from the page payload.
+`npm test` (Vitest) checks the 10-second update path, the 2-minute stale cutoff, ingest auth, Clerk 401, collector retry, and that stale or bad-quality numbers are absent from the page payload.
 
-## Run the page
+`npm run build` works with placeholder env (empty Clerk / database keys). It does not need a real Clerk app or Postgres until you run the dashboard for real.
 
-The owner’s PC already runs **Mosquitto as a Windows service on port 1883**. You can skip Terminal 1 unless that service is stopped.
+## Env files
 
-Terminal 1, broker (only if the Windows service is not running). Install [Mosquitto](https://mosquitto.org/download/) or use Docker:
+| File | Git | What it is |
+|---|---|---|
+| `.env.example` | committed | Every variable, placeholder values, comments on where to get each |
+| `.env.local` | **gitignored** | Your localhost:3000 secrets. Copy from `.env.example` |
+| `.env.production` | committed, **empty values** | Same keys, left blank. Real production values live in the Vercel UI |
+
+Never commit real keys.
+
+## Run locally (http://localhost:3000)
+
+The owner’s PC already runs **Mosquitto as a Windows service on port 1883**. You can skip the broker terminal unless that service is stopped.
+
+1. Copy env and fill it in (Clerk keys, Postgres URL, ingest secret). See the Windows setup section below.
+2. Database: local Docker **or** a Neon/Vercel cloud database used for dev.
 
 ```powershell
-mosquitto -c config/mosquitto.conf
+docker compose up -d postgres
+# then in .env.local:
+# DATABASE_URL=postgresql://hvac:hvac@127.0.0.1:5432/hvac
+# DIRECT_URL=postgresql://hvac:hvac@127.0.0.1:5432/hvac
+npx prisma migrate deploy
 ```
 
-```powershell
-docker compose up -d
-```
-
-Terminal 2, hub (after `npm install` and `npm run build`):
-
-```powershell
-npm run hub
-```
-
-Open http://127.0.0.1:8000
-
-For local code changes without a production build:
+3. Three terminals from the repo folder:
 
 ```powershell
 npm run dev
 ```
 
-Terminal 3, stand-in for the ESP32 until the board is flashed:
+Open http://localhost:3000 — Clerk sign-in, then the dashboard.
+
+```powershell
+npm run collector
+```
 
 ```powershell
 npm run simulate
@@ -54,27 +88,95 @@ npm run simulate
 
 The two temperatures step every 10 seconds. Stop the simulator (or unplug the ESP32). Within 2 minutes both tiles turn grey, say Stale, and the temperatures are gone.
 
-The database is `%LOCALAPPDATA%\hvac-monitor\hvac.db`, not in this iCloud folder. Override with `HVAC_DB`.
+The collector's retry buffer is `%LOCALAPPDATA%\hvac-monitor\hvac.db`, not in this iCloud folder. Override with `HVAC_DB`. That file is **not** the cloud database.
 
-Do not port-forward 1883 or 8000 on the router. The page is open on the LAN and has no password yet. It also has no control path.
+Do not port-forward 1883 on the router.
 
-## Architecture
+## Windows setup (Clerk, Vercel, Postgres)
 
-MQTT has to stay connected even when nobody is looking at the page. Next.js route handlers are not a long-lived process, so `server.ts` is a small custom Node server that:
+Do this once. Production can wait; localhost works as soon as Clerk + a database URL are in `.env.local`.
 
-1. Opens SQLite (`better-sqlite3`) and subscribes to `hvac/+/reading` with mqtt.js.
-2. Hands GET/HEAD to Next.js (the live page and `/api/readings`).
-3. Returns **405** for POST/PUT/PATCH/DELETE.
-4. Never publishes on MQTT. `write()` on the gateway throws `WriteNotSupported`.
+### A. GitHub repo
 
-A separate worker sharing the database would also work. One process is enough for a home hub: one SQLite connection, and `mqtt_connected` does not need a second channel.
+This project is already on GitHub (`aladdinsaeed98/resedintial-ai`). Vercel will import it.
+
+### B. Clerk
+
+1. Create an account at [https://dashboard.clerk.com](https://dashboard.clerk.com).
+2. Add an application (name it `hvac-monitor` or similar).
+3. Copy **Publishable key** (`pk_test_…` or `pk_live_…`) and **Secret key** (`sk_test_…` / `sk_live_…`).
+4. In Clerk → Configure → Paths, set sign-in `/sign-in` and sign-up `/sign-up`, after-sign-in `/`.
+5. Paste into `.env.local`:
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - `CLERK_SECRET_KEY`
+6. Later, paste the **same** keys (or the live pair) into the Vercel project env.
+
+### C. Vercel project
+
+1. Create an account at [https://vercel.com](https://vercel.com) and import the GitHub repo.
+2. Framework preset: **Next.js**. Root directory: repo root. Build command `npm run build` is already in `package.json`.
+3. Do **not** add MQTT host/port to Vercel env. The serverless app never opens MQTT.
+
+### D. Vercel Marketplace Postgres (Neon)
+
+1. In the Vercel project: Storage → Create Database → Postgres (Neon is the usual Marketplace option).
+2. Connect it to the project. Vercel injects `DATABASE_URL`. Neon also gives a **direct** URL for migrations — set `DIRECT_URL` to that (no `pgbouncer` query). If Vercel only shows one URL, use it for both locally; on Neon, pooled = `DATABASE_URL`, direct = `DIRECT_URL`.
+3. Run migrations once against that database (from your PC, with those URLs in `.env.local`):
+
+```powershell
+npx prisma migrate deploy
+```
+
+Vercel will run `postinstall` → `prisma generate` on each deploy. You still run `migrate deploy` from a machine that can reach Postgres when the schema changes.
+
+### E. Ingest secret
+
+Pick a long random string. Same value in three places:
+
+- `.env.local` as `INGEST_SECRET` (local Next and the collector both read this file)
+- Vercel env `INGEST_SECRET` (Production / Preview)
+- `.env.local` `HUB_INGEST_URL=http://localhost:3000/api/ingest` for local; for the house collector pointed at production, `HUB_INGEST_URL=https://YOUR_APP.vercel.app/api/ingest`
+
+PowerShell one-liner:
+
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
+```
+
+### F. What goes where
+
+| Variable | `.env.local` (PC) | Vercel project env |
+|---|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | yes | yes |
+| `CLERK_SECRET_KEY` | yes | yes |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` | yes | yes |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up` | yes | yes |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/` | yes | yes |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/` | yes | yes |
+| `DATABASE_URL` | yes (Docker or Neon) | yes (Marketplace) |
+| `DIRECT_URL` | yes | yes (Neon direct) |
+| `INGEST_SECRET` | yes | yes |
+| `HUB_INGEST_URL` | yes (collector) | no (unused on Vercel) |
+| `HVAC_MQTT_HOST` / `HVAC_MQTT_PORT` | yes (collector) | **no** |
+| `HVAC_DB` | optional (collector buffer) | **no** |
+| `HVAC_SYSTEM_NAME` / `HVAC_STALE_AFTER_SECONDS` | optional | optional (dashboard labels) |
+
+### G. Daily local run
+
+```powershell
+npm run dev          # http://localhost:3000
+npm run collector    # MQTT → HTTPS ingest
+npm run simulate     # fake ESP32, or flash the real board
+```
+
+Sign in with the Clerk user you created. Footer still says **Read only**.
 
 ## Flash the ESP32
 
 Board: ESP32 Dev Module. Libraries: PubSubClient, OneWire, DallasTemperature.
 
 1. Copy `firmware/bench_node/config.h.example` to `config.h`.
-2. Set Wi-Fi and the hub's LAN address (`MQTT_HOST`). `NODE_ID` stays `bench`.
+2. Set Wi-Fi and the **PC's LAN address** (`MQTT_HOST`). That is Mosquitto, not Vercel. `NODE_ID` stays `bench`.
 3. Flash `bench_node.ino`.
 4. Wire both probes to GPIO 4 with a 4.7k pull-up to **3.3 V**, not 5 V. Power the board from USB.
 
@@ -84,4 +186,4 @@ This phase is the desk. Do not land the probes in the furnace yet.
 
 ## Assumptions for this phase
 
-This PC is the hub. One bench node. Stale after 120 seconds. Later phases still need the Goodman model and LED table, where the hub will live long-term, condenser Wi-Fi, and whether this should feed the supervisory agent.
+Mosquitto stays on the home PC. The dashboard is on Vercel. Stale after 120 seconds. Later phases still need the Goodman model and LED table, condenser Wi-Fi, and whether this should feed the supervisory agent.

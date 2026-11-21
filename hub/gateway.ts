@@ -23,7 +23,7 @@ import {
   UnknownPoint,
 } from "./models";
 import { parseReading } from "./parsing";
-import type { ReadingStore } from "./store";
+import type { ReadingLookup } from "./store";
 import { READING_SUBSCRIBE } from "./topics";
 
 /**
@@ -40,11 +40,11 @@ export class MqttGateway extends BuildingGateway {
   subscribe_topic = READING_SUBSCRIBE;
 
   settings: Settings;
-  store: ReadingStore;
+  store: ReadingLookup;
   clock: Clock;
   private client: MqttClient | null = null;
 
-  constructor(settings: Settings, store: ReadingStore, clock: Clock) {
+  constructor(settings: Settings, store: ReadingLookup, clock: Clock) {
     super();
     this.settings = settings;
     this.store = store;

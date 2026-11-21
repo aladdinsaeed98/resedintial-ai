@@ -1,8 +1,12 @@
-# Optional Mosquitto broker for the bench.
-# The hub and simulator talk through this; nothing here commands HVAC equipment.
-# The owner usually runs Mosquitto as a Windows service on port 1883 instead.
-# If npm run hub shows mqtt_connected false, start that service or run:
+# Optional local services for the bench.
+# Mosquitto: MQTT on the LAN. Do not port-forward 1883 on the router.
+# Postgres: local stand-in for Vercel Marketplace Postgres / Neon.
+#
 #   docker compose up -d
+#   docker compose up -d mosquitto
+#   docker compose up -d postgres
+#
+# The owner usually runs Mosquitto as a Windows service on port 1883 instead.
 services:
   mosquitto:
     image: eclipse-mosquitto:2    # Official Eclipse Mosquitto 2.x
@@ -10,3 +14,17 @@ services:
       - "1883:1883"               # MQTT on the usual port. Do not port-forward on the router.
     volumes:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro  # Our bench config, read-only
+
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hvac
+      POSTGRES_PASSWORD: hvac
+      POSTGRES_DB: hvac
+    volumes:
+      - hvac_pg:/var/lib/postgresql/data
+
+volumes:
+  hvac_pg:

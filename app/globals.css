@@ -82,3 +82,9 @@ footer,
 footer {
   margin-top: 1.4rem;
 }
+
+.account {
+  position: absolute;
+  top: 1rem;
+  right: 1.1rem;
+}

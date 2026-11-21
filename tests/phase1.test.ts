@@ -61,7 +61,9 @@ class World {
       system_name: "Bench",
       points: loadSettings({}).points,
       host: "127.0.0.1",
-      port: 8000,
+      port: 3000,
+      ingest_url: "http://localhost:3000/api/ingest",
+      ingest_secret: "test-ingest-secret",
     };
     this.store = new ReadingStore(this.settings.database_path);
     this.gateway = new MqttGateway(this.settings, this.store, this.clock);
@@ -402,8 +404,12 @@ test("api is read only and hides stale numbers", async () => {
     const spec = (await (await fetch(`${base}/openapi.json`)).json()) as {
       paths: Record<string, Record<string, unknown>>;
     };
-    for (const methods of Object.values(spec.paths)) {
+    for (const [pathName, methods] of Object.entries(spec.paths)) {
       const names = Object.keys(methods);
+      if (pathName === "/api/ingest") {
+        expect(names).toEqual(["post"]);
+        continue;
+      }
       expect(names.every((name) => name === "get" || name === "head")).toBe(true);
     }
 

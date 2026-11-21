@@ -11,6 +11,8 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     testTimeout: 15_000,
+    // cloud.test.ts mutates Clerk env; do not race it with phase1 GET /api/readings.
+    fileParallelism: false,
   },
   resolve: {
     alias: {
