@@ -149,6 +149,20 @@ h1 {
   color: var(--orange);
 }
 
+.tile-group {
+  margin: 0 0 1.15rem;
+}
+
+.tile-group-title {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  font-weight: 650;
+}
+
 .grid {
   display: grid;
   gap: 0.75rem;
@@ -207,7 +221,8 @@ h1 {
   color: var(--orange);
 }
 
-.tile[data-status="stale"] .value {
+.tile[data-status="stale"] .value,
+.tile[data-status="missing"] .value {
   color: var(--stale);
   font-size: 1.45rem;
 }
@@ -261,6 +276,82 @@ h1 {
   font-size: 0.95rem;
 }
 
+.alert-home {
+  margin: 0 0 0.8rem;
+}
+
+.alert-home a {
+  color: var(--red);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.alert-heading {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  font-size: 1.05rem;
+  margin: 1.1rem 0 0.45rem;
+}
+
+.alert-empty {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.alert-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.alert-card {
+  border-radius: 16px;
+  padding: 0.9rem 1.05rem 1rem;
+}
+
+.alert-card[data-severity="critical"] {
+  box-shadow: 0 0 0 1px rgba(255, 77, 109, 0.45), 0 0 24px rgba(255, 77, 109, 0.12);
+}
+
+.alert-card[data-severity="warning"] {
+  box-shadow: 0 0 0 1px rgba(255, 176, 32, 0.45), 0 0 24px rgba(255, 176, 32, 0.12);
+}
+
+.alert-card[data-state="cleared"] {
+  box-shadow: none;
+  color: var(--stale);
+}
+
+.alert-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.alert-card[data-severity="critical"][data-state="active"] .alert-kicker,
+.alert-card[data-severity="critical"][data-state="active"] .alert-title {
+  color: var(--red);
+}
+
+.alert-card[data-severity="warning"][data-state="active"] .alert-kicker,
+.alert-card[data-severity="warning"][data-state="active"] .alert-title {
+  color: #ffb020;
+}
+
+.alert-title {
+  margin: 0.2rem 0 0.15rem;
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 650;
+}
+
+.alert-meta,
+.alert-time {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .panel {
   border-radius: 18px;
   padding: 1.25rem 1.2rem 1.4rem;
@@ -310,5 +401,9 @@ h1 {
 @media (min-width: 640px) {
   .tab {
     font-size: 0.78rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr 1fr;
   }
 }

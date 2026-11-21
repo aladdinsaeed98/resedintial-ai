@@ -47,15 +47,19 @@ export function openApiDocument(): Record<string, unknown> {
       "/live": { get: { summary: "Live readings" }, head: {} },
       "/history": { get: { summary: "History (later phase)" }, head: {} },
       "/codes": { get: { summary: "Codes (later phase)" }, head: {} },
-      "/alerts": { get: { summary: "Alerts (later phase)" }, head: {} },
+      "/alerts": { get: { summary: "Alerts" }, head: {} },
       "/ask": { get: { summary: "Ask (later phase)" }, head: {} },
       "/settings": { get: { summary: "Settings (later phase)" }, head: {} },
       "/api/readings": { get: { summary: "Current readings" }, head: {} },
+      "/api/alerts": { get: { summary: "Active and recent alerts (Clerk session)" }, head: {} },
       "/api/health": { get: { summary: "Health" }, head: {} },
+      "/api/cron/rules": {
+        get: { summary: "Vercel Cron rules tick (CRON_SECRET). Time-based stale/offline checks." },
+      },
       "/openapi.json": { get: { summary: "This document" }, head: {} },
       "/api/ingest": {
         post: {
-          summary: "Collector ingest (INGEST_SECRET). Stores readings; returns { accepted } only.",
+          summary: "Collector ingest (INGEST_SECRET). Stores readings, evaluates rules; returns { accepted } only.",
         },
       },
     },

@@ -2,17 +2,23 @@
  * Home glance from GET /api/readings. Monitor-only.
  *
  * Shows one status word (Cooling / Heating / Live / Stale / Fault), delta-T
- * when both temps are live, and the same tiles as Live. No unused mode names.
+ * when both temps are live, an active-alert count only when it is not zero,
+ * and the same tiles as Live. No unused mode names.
  */
 
 "use client";
 
+import Link from "next/link";
+
 import { glanceFromPoints } from "@/hub/glance";
 import { ReadingTiles } from "./ReadingTiles";
+import { useAlerts } from "./useAlerts";
 import { staleLabel, useReadings } from "./useReadings";
 
 export function HomeView() {
   const { snapshot, banner, hubAge, effectiveStatus } = useReadings();
+  const alerts = useAlerts();
+  const activeCount = alerts?.active_count ?? 0;
   const points = snapshot?.points ?? [];
   const classified = points.map((point) => ({
     point_id: point.point_id,
@@ -30,6 +36,13 @@ export function HomeView() {
           : "Waiting for the hub…"}
       </p>
       <p className="banner">{banner}</p>
+      {activeCount > 0 ? (
+        <p className="alert-home">
+          <Link href="/alerts">
+            {activeCount} active {activeCount === 1 ? "alert" : "alerts"}
+          </Link>
+        </p>
+      ) : null}
       <article className="hero glass" data-kind={glance.kind}>
         <p className="hero-kicker">System</p>
         <p className="hero-label">{glance.label}</p>

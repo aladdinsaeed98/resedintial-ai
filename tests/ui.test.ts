@@ -8,8 +8,13 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test } from "vitest";
 
+import { loadSettings } from "../hub/config";
+import { formatReading } from "../hub/format-reading";
 import { glanceFromPoints } from "../hub/glance";
+import { publicSnapshotFromMap } from "../hub/live";
+import { groupPoints } from "../hub/tile-groups";
 import { APP_SCREENS, PLACEHOLDER_COPY } from "../lib/screens";
+import { benchReadings } from "../simulator/bench-publisher";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -37,7 +42,7 @@ test("app shell has seven screens and no count badges", () => {
 
 test("later-phase screens are styled placeholders", () => {
   const later = APP_SCREENS.filter((screen) => screen.laterPhase);
-  expect(later).toHaveLength(5);
+  expect(later).toHaveLength(4);
   const placeholder = fs.readFileSync(
     path.join(REPO, "components", "PlaceholderPage.tsx"),
     "utf8",
@@ -66,6 +71,7 @@ test("stale tiles stay grey and hide the value", () => {
   expect(css).toContain("--red:");
   const tiles = fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8");
   expect(tiles).toContain('stale: "Stale"');
+  expect(tiles).toContain('missing: "No data yet"');
   expect(tiles).toContain('status === "live" && typeof point.value === "number"');
 });
 
@@ -96,6 +102,58 @@ test("home glance never invents Idle and flags stale vs cooling", () => {
   );
 });
 
+test("alerts screen uses severity colors and has no write UI", () => {
+  const alerts = fs.readFileSync(path.join(REPO, "components", "AlertsView.tsx"), "utf8");
+  expect(alerts).toContain("data-severity");
+  expect(alerts).toContain("cleared");
+  expect(alerts.toLowerCase()).not.toContain("<form");
+  expect(alerts.toLowerCase()).not.toContain("<button");
+  expect(alerts).not.toContain("innerHTML");
+  const page = fs.readFileSync(path.join(REPO, "app", "(app)", "alerts", "page.tsx"), "utf8");
+  expect(page).toContain("AlertsView");
+  expect(page).not.toContain("PlaceholderPage");
+  const home = fs.readFileSync(path.join(REPO, "components", "HomeView.tsx"), "utf8");
+  expect(home).toContain("activeCount > 0");
+  expect(home).not.toMatch(/>\s*0\s*</);
+  const css = fs.readFileSync(path.join(REPO, "app", "globals.css"), "utf8");
+  expect(css).toContain('[data-severity="critical"]');
+  expect(css).toContain('[data-severity="warning"]');
+});
+
+test("every points.json sensor renders a live tile", () => {
+  const settings = loadSettings({});
+  const ids = settings.points.map((point) => point.id);
+  expect(ids.length).toBeGreaterThan(2);
+  const snap = publicSnapshotFromMap(settings, {}, new Date("2026-11-21T12:00:00Z"));
+  expect(snap.points.map((point) => point.point_id)).toEqual(ids);
+  expect(snap.points.every((point) => point.status === "missing")).toBe(true);
+
+  const groups = groupPoints(settings.points);
+  const groupedIds = groups.flatMap((group) => group.points.map((point) => point.id));
+  expect(groupedIds.sort()).toEqual([...ids].sort());
+  expect(groups.map((group) => group.label)).toEqual([
+    "Temperatures",
+    "Electrical",
+    "Thermostat calls",
+    "Board",
+  ]);
+
+  const tiles = fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8");
+  expect(tiles).toContain("data-point={point.point_id}");
+  expect(tiles).toContain("No data yet");
+  expect(tiles).toContain("tile-group");
+  expect(tiles).not.toContain("return_air_temp === ");
+
+  const simulated = benchReadings(0, "none").map((row) => row.point);
+  expect(simulated).toEqual(ids);
+
+  expect(formatReading(0, "bool")).toBe("Off");
+  expect(formatReading(1, "bool")).toBe("On");
+  expect(formatReading(5.2, "A")).toBe("5.2 A");
+  expect(formatReading(0, "code")).toBe("Normal");
+  expect(formatReading(3, "code")).toBe("Unknown code 3");
+});
+
 test("PWA manifest and icons exist", () => {
   const manifest = fs.readFileSync(path.join(REPO, "app", "manifest.ts"), "utf8");
   expect(manifest).toContain('theme_color: "#05070c"');
@@ -109,4 +167,5 @@ test("PWA manifest and icons exist", () => {
   }
   const sw = fs.readFileSync(path.join(REPO, "public", "sw.js"), "utf8");
   expect(sw).toContain("never cache /api/readings");
+  expect(sw).toContain("/api/alerts");
 });

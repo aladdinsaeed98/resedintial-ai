@@ -41,3 +41,24 @@ model CollectorStatus {
 
   @@map("collector_status")
 }
+
+/// One fault occurrence. A clear + return inside 30 min reopens the same row.
+/// subject distinguishes two stale_sensor / node_offline alerts for the same rule.
+model Alert {
+  id           String    @id @default(cuid())
+  ruleId       String    @map("rule_id")
+  subject      String    @default("")
+  rulesVersion Int       @map("rules_version")
+  severity     String
+  title        String
+  systemName   String    @map("system_name")
+  openedAt     DateTime  @map("opened_at")
+  lastSeenAt   DateTime  @map("last_seen_at")
+  clearedAt    DateTime? @map("cleared_at")
+  occurrence   Int
+  detail       Json
+
+  @@index([ruleId, subject, lastSeenAt])
+  @@index([clearedAt, lastSeenAt])
+  @@map("alerts")
+}

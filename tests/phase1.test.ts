@@ -64,6 +64,7 @@ class World {
       port: 3000,
       ingest_url: "http://localhost:3000/api/ingest",
       ingest_secret: "test-ingest-secret",
+      cron_secret: "test-cron-secret",
     };
     this.store = new ReadingStore(this.settings.database_path);
     this.gateway = new MqttGateway(this.settings, this.store, this.clock);
@@ -122,6 +123,11 @@ test("shipped defaults match the bench pass", () => {
   expect(settings.points.map((item) => item.id)).toEqual([
     "return_air_temp",
     "supply_air_temp",
+    "call_y",
+    "call_g",
+    "compressor_amps",
+    "blower_amps",
+    "led_code",
   ]);
   expect(DEFAULT_INTERVAL_SECONDS).toBe(10);
   expect(MQTT_RETAIN).toBe(false);
@@ -168,7 +174,7 @@ test("degree symbol counts as fahrenheit", () => {
   const result = parseReading(readingTopic("bench"), JSON.stringify(body), START);
   expect(result.reading).not.toBeNull();
   expect(result.reading?.unit).toBe("F");
-  expect(w.settings.points).toHaveLength(2);
+  expect(w.settings.points).toHaveLength(7);
 });
 
 test("readings update on the next sample", () => {
@@ -182,6 +188,11 @@ test("readings update on the next sample", () => {
   expect((snap.points as Array<Record<string, unknown>>).map((item) => item.point_id)).toEqual([
     "return_air_temp",
     "supply_air_temp",
+    "call_y",
+    "call_g",
+    "compressor_amps",
+    "blower_amps",
+    "led_code",
   ]);
   expect(point(snap, "return_air_temp").value).toBeCloseTo(73.0);
   expect(point(snap, "return_air_temp").age_seconds).toBe(0);

@@ -1,7 +1,7 @@
-import { PlaceholderPage } from "@/components/PlaceholderPage";
+import { AlertsView } from "@/components/AlertsView";
 
 export const dynamic = "force-dynamic";
 
 export default function AlertsPage() {
-  return <PlaceholderPage title="Alerts" />;
+  return <AlertsView />;
 }

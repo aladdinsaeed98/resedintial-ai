@@ -1,8 +1,9 @@
 /**
  * The seven signed-in screens. Labels are the only nav text — no counts.
  *
- * History, Codes, Alerts, Ask, and Settings are placeholders until later
- * phases. Home and Live read GET /api/readings. Nothing here writes.
+ * History, Codes, Ask, and Settings are placeholders until later phases.
+ * Home and Live read GET /api/readings. Alerts reads GET /api/alerts.
+ * Nothing here writes.
  */
 
 export interface AppScreen {
@@ -17,7 +18,7 @@ export const APP_SCREENS: readonly AppScreen[] = [
   { href: "/live", label: "Live", title: "Live", laterPhase: false },
   { href: "/history", label: "History", title: "History", laterPhase: true },
   { href: "/codes", label: "Codes", title: "Codes", laterPhase: true },
-  { href: "/alerts", label: "Alerts", title: "Alerts", laterPhase: true },
+  { href: "/alerts", label: "Alerts", title: "Alerts", laterPhase: false },
   { href: "/ask", label: "Ask", title: "Ask", laterPhase: true },
   { href: "/settings", label: "Settings", title: "Settings", laterPhase: true },
 ];

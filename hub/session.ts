@@ -1,7 +1,7 @@
 /**
  * Dashboard session check. Clerk when configured; open in local tests/build.
  *
- * GET /api/readings calls this. A missing session is 401, not a redirect
+ * GET /api/readings and GET /api/alerts call this. A missing session is 401, not a redirect
  * (fetch from the live page). Middleware still redirects document requests
  * to sign-in when Clerk keys are real.
  */

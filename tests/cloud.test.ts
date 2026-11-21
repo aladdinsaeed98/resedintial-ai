@@ -15,6 +15,7 @@ import { afterEach, expect, test } from "vitest";
 import { POST as ingestPost } from "../app/api/ingest/route";
 import { GET as getReadings } from "../app/api/readings/route";
 import { PendingBuffer } from "../collector/buffer";
+import { cronUrlFromIngest, pingCronOnce } from "../collector/cron-tick";
 import { flushOnce } from "../collector/forwarder";
 import { clerkKeysConfigured } from "../hub/clerk-keys";
 import { loadSettings } from "../hub/config";
@@ -226,8 +227,55 @@ test("collector forwards, retries when offline, and never publishes", async () =
   const collector = [
     fs.readFileSync(path.join(REPO, "collector", "cli.ts"), "utf8"),
     fs.readFileSync(path.join(REPO, "collector", "forwarder.ts"), "utf8"),
+    fs.readFileSync(path.join(REPO, "collector", "cron-tick.ts"), "utf8"),
     fs.readFileSync(path.join(REPO, "server.ts"), "utf8"),
   ].join("\n");
   expect(collector).not.toContain(".publish(");
   expect(collector).toContain("Never publishes");
+});
+
+test("collector cron tick is outbound GET, skips empty secret, and does not retry-spam", async () => {
+  expect(cronUrlFromIngest("https://example.test/api/ingest")).toBe(
+    "https://example.test/api/cron/rules",
+  );
+
+  const skipped = await pingCronOnce({
+    cronUrl: "https://example.test/api/cron/rules",
+    cronSecret: "",
+    fetchImpl: async () => {
+      throw new Error("must not fetch when secret is empty");
+    },
+  });
+  expect(skipped).toEqual({ ok: false, status: 0, skipped: true });
+
+  let calls = 0;
+  const failed = await pingCronOnce({
+    cronUrl: "https://example.test/api/cron/rules",
+    cronSecret: SECRET,
+    fetchImpl: async () => {
+      calls += 1;
+      throw new Error("offline");
+    },
+  });
+  expect(failed.ok).toBe(false);
+  expect(failed.skipped).toBe(false);
+  expect(calls).toBe(1);
+
+  let method = "";
+  let auth = "";
+  let bodyPresent = false;
+  const ok = await pingCronOnce({
+    cronUrl: "https://example.test/api/cron/rules",
+    cronSecret: SECRET,
+    fetchImpl: async (_url, init) => {
+      method = init.method;
+      auth = init.headers.authorization;
+      bodyPresent = "body" in init;
+      return { ok: true, status: 200 };
+    },
+  });
+  expect(ok).toEqual({ ok: true, status: 200, skipped: false });
+  expect(method).toBe("GET");
+  expect(auth).toBe(`Bearer ${SECRET}`);
+  expect(bodyPresent).toBe(false);
 });
