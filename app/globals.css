@@ -1,3 +1,10 @@
+/*
+ * Live page look. White tile = live. Grey = anything else (stale, bad, missing).
+ *
+ * [data-status="live"] is what the tile uses when a number is on screen.
+ * If stale tiles are not grey, this file is the first place to look.
+ */
+
 :root {
   color-scheme: light;
   font-family: "Segoe UI", sans-serif;

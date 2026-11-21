@@ -33,7 +33,7 @@ Two ESP32 nodes publish readings to a hub on your home network. The hub stores t
 | Home hub (Raspberry Pi or PC)                                            |
 |                                                                          |
 |  [Mosquitto]   ->   [Backend]          ->  [Database]     ->  [AI layer] |
-|  MQTT broker        FastAPI, fault rules    SQLite history     Grounded, |
+|  MQTT broker        Next.js, fault rules    SQLite history     Grounded, |
 |                                                                optional  |
 +----------------+----------------------------------------+----------------+
                  |                                        |
@@ -216,7 +216,7 @@ Five phases, each ending in a test you can actually run. Don't start the next ph
 5. **AI agent.** The grounded agent described above, behind the Ask screen.
    - Pass: the agent's test questions answer correctly from live data, and the heat-pump question is refused.
 
-**Stack:** Python with FastAPI for the backend (same language as your supervisory repo), Mosquitto for MQTT, SQLite to start (move to InfluxDB only if it gets slow), and a plain HTML and JavaScript PWA. Firmware in Arduino C++ so the LED decoder is fully under your control. All of it builds in Cursor.
+**Stack:** Next.js (App Router, TypeScript) for the hub and live page, Mosquitto for MQTT, SQLite to start (move to InfluxDB only if it gets slow). Firmware in Arduino C++ so the LED decoder is fully under your control. All of it builds in Cursor. The hub is monitor-only: it subscribes to MQTT and never publishes.
 
 ## Testing
 

@@ -10,5 +10,5 @@ Read docs/PLAN.md before changing anything.
 4. Fault detection is deterministic rules in code, never the LLM.
 5. Equipment and fault-code meanings come only from the installed equipment profile. Never assume another brand's table.
 6. Every alert, email, question and answer goes in the audit log.
-7. Writes to the learning store and audit log are atomic (temp file + os.replace). A failed load is reported, never silent.
+7. Writes to the learning store and audit log are atomic (temp file + rename that replaces the destination). A failed load is reported, never silent.
 8. Every change comes with tests. Run them before saying it is done.
