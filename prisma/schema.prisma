@@ -62,3 +62,45 @@ model Alert {
   @@index([clearedAt, lastSeenAt])
   @@map("alerts")
 }
+
+/// One Ask chat thread. Append-only messages. Never controls equipment.
+model AskSession {
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  messages  AskMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("ask_sessions")
+}
+
+/// One Ask turn. groundingFacts stores the chips / numeric facts used.
+model AskMessage {
+  id             String     @id @default(cuid())
+  sessionId      String     @map("session_id")
+  role           String
+  content        String
+  groundingFacts Json?      @map("grounding_facts")
+  refused        Boolean    @default(false)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  session        AskSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("ask_messages")
+}
+
+/// Readings window captured when an alert opens (create / reopen).
+model IncidentSnapshot {
+  id        String   @id @default(cuid())
+  alertId   String   @map("alert_id")
+  ruleId    String   @map("rule_id")
+  subject   String   @default("")
+  openedAt  DateTime @map("opened_at")
+  readings  Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([alertId])
+  @@index([openedAt])
+  @@map("incident_snapshots")
+}

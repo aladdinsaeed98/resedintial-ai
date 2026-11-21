@@ -1,0 +1,27 @@
+{
+  "id": "compressor_not_starting",
+  "symptom": "Compressor not starting",
+  "aliases": ["outdoor unit not starting", "condenser not running", "compressor won't start"],
+  "rule_ids": ["call_no_compressor"],
+  "point_ids": ["call_y", "compressor_amps"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Outdoor disconnect or breaker off" },
+    { "rank": 2, "cause": "Thermostat cool call not present" },
+    { "rank": 3, "cause": "Failed capacitor or contactor", "tech_only": true },
+    { "rank": 4, "cause": "Hard-start or locked rotor", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Verify Cool call on the thermostat",
+    "Confirm outdoor disconnect and breaker are on",
+    "Listen for a hum or click at the outdoor unit — do not open the panel",
+    "Clear debris around the unit"
+  ],
+  "tech_only": [
+    "Capacitor and contactor replacement",
+    "Compressor amperage and lock-rotor diagnosis",
+    "Any work on line-voltage lugs"
+  ],
+  "call_pro_when": "Cooling call has been on past the rule delay and compressor amps remain near zero.",
+  "sources": ["docs/PLAN.md call_no_compressor rule"],
+  "assumptions": ["Compressor running threshold comes from rules.json constants"]
+}

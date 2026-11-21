@@ -1,0 +1,27 @@
+{
+  "id": "low_delta_t",
+  "symptom": "Low delta-T",
+  "aliases": ["delta-t too low", "small temperature split", "not much cooling"],
+  "rule_ids": ["low_delta_t", "long_run", "call_no_compressor"],
+  "point_ids": ["return_air_temp", "supply_air_temp", "compressor_amps", "call_y"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Compressor not actually running during a cool call" },
+    { "rank": 2, "cause": "Outdoor unit airflow blocked" },
+    { "rank": 3, "cause": "Low charge or metering problem", "tech_only": true },
+    { "rank": 4, "cause": "High indoor humidity lowering sensible split (context only)" }
+  ],
+  "homeowner_checks": [
+    "Confirm call_y / Cool is active and outdoor unit is running",
+    "Clear leaves and debris from the outdoor coil",
+    "Replace the filter so the blower can move air",
+    "Wait for a sustained run before judging delta-T"
+  ],
+  "tech_only": [
+    "Gauge-based charge diagnosis",
+    "Compressor or reversing-valve service",
+    "Refrigerant recovery and recharge"
+  ],
+  "call_pro_when": "Compressor amps show running but supply stays close to return after a long cool call.",
+  "sources": ["docs/PLAN.md low delta-T and long_run rules"],
+  "assumptions": ["Humidity-adjusted thresholds may arrive later; fixed thresholds used for now"]
+}

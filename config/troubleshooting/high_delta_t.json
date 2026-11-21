@@ -1,0 +1,26 @@
+{
+  "id": "high_delta_t",
+  "symptom": "High delta-T",
+  "aliases": ["delta-t too high", "big temperature split", "high temperature difference"],
+  "rule_ids": ["high_delta_t"],
+  "point_ids": ["return_air_temp", "supply_air_temp", "compressor_amps", "blower_amps"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Dirty filter or low airflow (common)" },
+    { "rank": 2, "cause": "Closed supply vents or restricted return" },
+    { "rank": 3, "cause": "Dirty indoor coil", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Replace the filter",
+    "Open supply registers at least halfway",
+    "Clear returns of rugs, furniture, and dust covers",
+    "Compare Live return vs supply after 10+ minutes of run"
+  ],
+  "tech_only": [
+    "Indoor coil cleaning",
+    "Blower speed or duct redesign",
+    "Static pressure measurement"
+  ],
+  "call_pro_when": "High delta-T remains after a new filter and open vents during a sustained cooling call.",
+  "sources": ["docs/PLAN.md high delta-T rule (placeholder above_f)"],
+  "assumptions": ["Thresholds are placeholders until tuned on site data"]
+}

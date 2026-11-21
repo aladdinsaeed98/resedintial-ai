@@ -1,0 +1,26 @@
+{
+  "id": "frozen_coil",
+  "symptom": "Frozen coil",
+  "aliases": ["ice on coil", "frozen evaporator", "icing up"],
+  "rule_ids": ["low_delta_t", "long_run", "high_delta_t"],
+  "point_ids": ["return_air_temp", "supply_air_temp", "blower_amps", "compressor_amps", "call_y"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Severely restricted airflow (filter or vents)" },
+    { "rank": 2, "cause": "Blower not moving enough air while compressor runs" },
+    { "rank": 3, "cause": "Low refrigerant or metering issue", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Turn the system to Off or Fan-only and let ice melt completely before restarting Cool",
+    "Replace the filter",
+    "Open vents and clear returns",
+    "Do not chip ice off the coil"
+  ],
+  "tech_only": [
+    "Refrigerant leak search or recharge",
+    "TXV / metering device work",
+    "Coil removal or deep cleaning"
+  ],
+  "call_pro_when": "Ice returns after a full thaw with a clean filter and open vents.",
+  "sources": ["Generic residential freeze-up practice; airflow first"],
+  "assumptions": ["No pressure transducers in v1 — freeze-up is inferred, not measured by gauges"]
+}

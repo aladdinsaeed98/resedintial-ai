@@ -1,0 +1,36 @@
+{
+  "id": "no_cooling",
+  "symptom": "No cooling",
+  "aliases": ["not cooling", "blowing warm", "ac not cold", "warm air"],
+  "rule_ids": ["call_no_compressor", "low_delta_t", "long_run", "board_fault"],
+  "point_ids": ["call_y", "compressor_amps", "return_air_temp", "supply_air_temp", "led_code"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Thermostat not calling for cool, or wrong mode/setpoint" },
+    { "rank": 2, "cause": "Outdoor disconnect or breaker open" },
+    { "rank": 3, "cause": "Dirty filter or closed vents cutting airflow" },
+    { "rank": 4, "cause": "Outdoor unit blocked or not running", "tech_only": false },
+    { "rank": 5, "cause": "Failed capacitor, contactor, or low refrigerant", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Confirm thermostat is in Cool and the setpoint is below room temperature",
+    "Replace or clean the return filter",
+    "Open supply and return vents",
+    "Check the furnace switch and outdoor disconnect are on",
+    "Look at the outdoor unit for ice, debris, or a silent fan"
+  ],
+  "tech_only": [
+    "Refrigerant diagnosis or recharge",
+    "Start/run capacitor replacement",
+    "Contactor or line-voltage work at the outdoor unit",
+    "Opening sealed system components"
+  ],
+  "call_pro_when": "Cooling call is on for several minutes but compressor amps stay near zero, or the outdoor unit hums without starting.",
+  "sources": [
+    "docs/PLAN.md fault engine table",
+    "Generic residential AC practice (filter, breaker, thermostat first)"
+  ],
+  "assumptions": [
+    "Single-stage AC with gas furnace unless the equipment profile says otherwise",
+    "No communicating thermostat bus"
+  ]
+}

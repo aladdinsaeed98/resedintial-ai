@@ -186,8 +186,18 @@ export function AlertsView() {
                         : `opened ${when(alert.opened_at, now)}`}
                     </td>
                     <td className="alert-hint">
-                      {alert.hint ||
-                        "Check Live readings. Owner checks first; line-voltage work is for a technician."}
+                      <p>
+                        {alert.hint ||
+                          "Check Live readings. Owner checks first; line-voltage work is for a technician."}
+                      </p>
+                      <a
+                        className="ask-deeplink"
+                        href={`/ask?q=${encodeURIComponent(
+                          `What should I do about this alert: ${alert.title}?`,
+                        )}`}
+                      >
+                        Ask about this alert
+                      </a>
                     </td>
                   </tr>
                 );

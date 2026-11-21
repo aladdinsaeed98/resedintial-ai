@@ -1,0 +1,31 @@
+{
+  "id": "condensate_overflow",
+  "symptom": "Condensate overflow",
+  "aliases": ["water under air handler", "drain clogged", "float switch", "leak"],
+  "rule_ids": [],
+  "point_ids": ["condensate_leak"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Clogged condensate drain line" },
+    { "rank": 2, "cause": "Float switch tripped or pan full" },
+    { "rank": 3, "cause": "Secondary drain or pan issue inside the unit", "tech_only": true }
+  ],
+  "homeowner_checks": [
+    "Look for standing water under the air handler — do not step in water near electrical",
+    "If safe, clear the visible end of the drain line outdoors",
+    "Replace a soaked filter if water reached it",
+    "Turn the system Off if water is actively overflowing"
+  ],
+  "tech_only": [
+    "Opening the air handler to clear an internal trap",
+    "Float switch wiring repair",
+    "Pan replacement"
+  ],
+  "call_pro_when": "Water returns after clearing the outdoor drain end, or you cannot reach the drain safely.",
+  "sources": [
+    "docs/PLAN.md added condensate_leak item",
+    "Generic condensate overflow practice"
+  ],
+  "assumptions": [
+    "condensate_leak may be missing until that sensor is installed; KB still explains the symptom"
+  ]
+}

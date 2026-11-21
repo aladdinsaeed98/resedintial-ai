@@ -9,10 +9,10 @@ Not started. Do not build these until the matching plan phase is open.
   The History screen is a sortable table for now; charts wait for Phase 2.
 - Alert and code count badges on the tab bar — never a stray `0`. Home
   already shows an active-alert count only when it is not zero.
-- Ask-screen grounded AI (Claude / templates), Settings thresholds, per-brand
-  LED code tables (Plan phases 3–5). `config/led_codes.json` only treats 0 as
-  normal; any other value is an unknown warning. Ask is a styled coming-soon
-  placeholder until that PR.
+- Settings thresholds UI and per-brand LED code tables (Plan phases 3–5).
+  `config/led_codes.json` only treats 0 as normal; any other value is an
+  unknown warning. Ask now uses the curated KB + optional Claude; richer
+  multi-turn memory and voice can wait.
 - Offline PWA cache for the shell CSS. Do not cache `/api/readings`,
   `/api/alerts`, or `/api/history`.
 - Phase C: ntfy push, failure emails, healthchecks.io, audit log. The

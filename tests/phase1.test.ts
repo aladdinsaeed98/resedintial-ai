@@ -425,6 +425,14 @@ test("api is read only and hides stale numbers", async () => {
         expect(names).toEqual(["post"]);
         continue;
       }
+      // Ask accepts questions via POST but never returns equipment commands.
+      if (pathName === "/api/ask") {
+        expect(names).toContain("post");
+        expect(
+          names.every((name) => name === "get" || name === "head" || name === "post"),
+        ).toBe(true);
+        continue;
+      }
       expect(names.every((name) => name === "get" || name === "head")).toBe(true);
     }
 

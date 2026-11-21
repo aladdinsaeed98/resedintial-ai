@@ -231,11 +231,12 @@ export async function persistProposed(
   now: Date,
   proposed: readonly ProposedAlert[],
   windowS: number,
+  readingWindow?: unknown,
 ): Promise<AlertMutation[]> {
   const existing = await store.allLatest();
   const mutations = diffAlerts(now, existing, proposed, windowS);
   if (mutations.length === 0) return [];
-  await store.apply(mutations);
+  const applied = await store.apply(mutations);
   for (const mutation of mutations) {
     const ruleId =
       mutation.type === "create" ? mutation.record.ruleId : (existing.find((row) => row.id === mutation.id)?.ruleId ?? "");
@@ -263,5 +264,37 @@ export async function persistProposed(
       title,
     });
   }
+
+  // Capture incident snapshots on create/reopen (append-only). Failures never
+  // block alert persistence or ingest { accepted }.
+  try {
+    const { getIncidentStore } = await import("./ask/incidents");
+    const incidents = getIncidentStore();
+    if (incidents && readingWindow !== undefined) {
+      for (const mutation of mutations) {
+        if (mutation.type !== "create" && mutation.type !== "reopen") continue;
+        const record =
+          mutation.type === "reopen"
+            ? applied.find((row) => row.id === mutation.id)
+            : applied.find(
+                (row) =>
+                  row.ruleId === mutation.record.ruleId &&
+                  row.subject === mutation.record.subject &&
+                  row.clearedAt === null,
+              );
+        if (!record) continue;
+        await incidents.save({
+          alertId: record.id,
+          ruleId: record.ruleId,
+          subject: record.subject,
+          openedAt: record.lastSeenAt,
+          readings: readingWindow,
+        });
+      }
+    }
+  } catch (error) {
+    console.error("incident snapshot failed", error);
+  }
+
   return mutations;
 }

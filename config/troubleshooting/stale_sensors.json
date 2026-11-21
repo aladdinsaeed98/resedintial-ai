@@ -1,0 +1,25 @@
+{
+  "id": "stale_sensors",
+  "symptom": "Stale sensors",
+  "aliases": ["sensor offline", "no reading", "stale reading", "node offline"],
+  "rule_ids": ["stale_sensor", "node_offline"],
+  "point_ids": ["return_air_temp", "supply_air_temp", "compressor_amps", "blower_amps"],
+  "likely_causes": [
+    { "rank": 1, "cause": "ESP32 or probe power/Wi-Fi drop" },
+    { "rank": 2, "cause": "Local collector or Mosquitto not running" },
+    { "rank": 3, "cause": "Ingest secret or cloud URL mismatch" }
+  ],
+  "homeowner_checks": [
+    "Confirm the sensor node has USB power and joins Wi-Fi",
+    "Confirm the collector process is running next to Mosquitto",
+    "Do not use an old number as current — Stale means unknown",
+    "Check Live tiles: missing or stale after two minutes is expected when silent"
+  ],
+  "tech_only": [
+    "Probe wiring repair at line voltage adjacent equipment",
+    "Opening the furnace for probe placement (power off, meter verify)"
+  ],
+  "call_pro_when": "Hardware probes are installed on the live unit and stay stale after power/Wi-Fi checks — a tech may need wiring work with power off.",
+  "sources": ["docs/PLAN.md stale sensor / node offline rules", "docs/CODE_GUIDE.md"],
+  "assumptions": ["Age uses cloud received_at, not the node clock"]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "board_led_fault",
+  "symptom": "Board LED fault",
+  "aliases": ["furnace flashing", "led code", "status light fault", "board code"],
+  "rule_ids": ["board_fault"],
+  "point_ids": ["led_code"],
+  "likely_causes": [
+    { "rank": 1, "cause": "Board reporting a non-normal pattern from the installed label" },
+    { "rank": 2, "cause": "Door switch, flame sense, or limit condition (pattern-dependent)" }
+  ],
+  "homeowner_checks": [
+    "Write down the flash pattern from the board label inside the blower door",
+    "Seat the blower door firmly",
+    "Replace the filter if a limit trip is suspected from weak airflow",
+    "Do not guess meanings from another brand's chart"
+  ],
+  "tech_only": [
+    "Flame sensor cleaning or gas valve work",
+    "Control board replacement",
+    "Any gas or line-voltage diagnosis"
+  ],
+  "call_pro_when": "The installed LED table maps the pattern to a fault, or the pattern is unknown and the system will not run.",
+  "sources": [
+    "docs/PLAN.md board fault code rule",
+    "config/led_codes.json (only normal_values are known; others are unknown)"
+  ],
+  "assumptions": [
+    "LED meanings come only from the installed profile table — never invented",
+    "Placeholder led_codes.json currently treats only 0 as normal"
+  ]
+}
