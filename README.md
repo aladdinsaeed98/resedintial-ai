@@ -78,7 +78,11 @@ npx prisma migrate deploy
 npm run dev
 ```
 
-Open http://localhost:3000 — Clerk sign-in, then the dashboard.
+Open http://localhost:3000 — Clerk sign-in, then the dark Home screen. The
+bottom bar has Home, Live, History, Codes, Alerts, Ask, and Settings. Home
+and Live show `/api/readings`. The other five say "Coming in a later phase".
+On a phone, browser menu → Add to Home Screen (PWA). The app is still
+**Read only**.
 
 ```powershell
 npm run collector

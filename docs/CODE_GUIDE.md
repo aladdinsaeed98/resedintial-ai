@@ -93,15 +93,21 @@ sign-up, `/api/ingest`, `/api/health`, and `/openapi.json`.
 | File | What it does |
 |---|---|
 | `middleware.ts` | Clerk `auth.protect()` when keys are configured; no-op for `next build` placeholders. |
-| `app/layout.tsx` | HTML shell. Wraps `ClerkProvider` only when keys are real. |
-| `app/page.tsx` | Signed-in dashboard: `UserButton` + live tiles. |
-| `app/sign-in/` `app/sign-up/` | Public Clerk screens. |
-| `app/globals.css` | White tile = live. Grey = anything else (stale, bad, missing). |
+| `app/layout.tsx` | HTML shell, dark PWA metadata, Clerk dark appearance when keys are real. |
+| `app/(app)/` | Signed-in screens behind `AppShell`: Home, Live, History, Codes, Alerts, Ask, Settings. |
+| `app/(app)/page.tsx` | Home glance from `/api/readings`. |
+| `app/(app)/live/page.tsx` | Live tiles from `/api/readings`. |
+| `app/(app)/history` `codes` `alerts` `ask` `settings` | Styled placeholders: "Coming in a later phase". |
+| `app/sign-in/` `app/sign-up/` | Public Clerk screens, same dark look. |
+| `app/manifest.ts` | Add to Home Screen (standalone, theme-color `#05070c`). |
+| `app/globals.css` | Dark glass. Cyan = cooling, orange = heating, red = fault, grey + Stale. |
 | `app/api/ingest/route.ts` | POST only. Shared secret. Stores readings. Never returns a command. |
 | `app/api/readings/route.ts` | GET for the tiles. 401 without a Clerk session when keys are real. |
 | `app/api/health/route.ts` | GET. Public so Vercel can ping it. |
 | `app/openapi.json/route.ts` | Documents GET-only people paths plus collector ingest. |
+| `components/AppShell.tsx` | Brand, Clerk `UserButton`, seven-link nav, Read only footer. |
 | `components/LivePage.tsx` | Polls `/api/readings` every 1 s. Shows a number only for live numeric values. |
+| `public/icons/` `public/sw.js` | PWA icons and a network-only service worker (does not cache readings). |
 
 ## Local collector (`collector/`, `server.ts`)
 
@@ -172,6 +178,7 @@ the hub refuse to start.
 |---|---|
 | `phase1.test.ts` | The original 19 Phase 1 cases: 10 s updates, 120 s stale, no write path, bad temps hidden, GET-only people API. Frozen clock, temp SQLite — no live Mosquitto. |
 | `cloud.test.ts` | Ingest secret reject/store, Clerk 401, stale from DB-shaped rows, collector forward + retry, never publishes. |
+| `ui.test.ts` | Seven-screen shell, placeholders, stale grey styling, PWA manifest/icons. |
 
 Run with `npm test` from the repo root (after `npm install`).
 
@@ -206,7 +213,7 @@ To run tests (no broker needed):
 npm test
 ```
 
-Expect the original 19 Phase 1 tests plus the cloud/collector cases.
+Expect the original 19 Phase 1 tests plus the cloud/collector and UI shell cases.
 
 ### Common failure points
 
