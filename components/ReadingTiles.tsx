@@ -1,27 +1,21 @@
 /**
- * One glass tile per point. Shared by Live (and Home's compact strip).
+ * One glass tile per configured point, grouped from points.json units.
  *
- * A number is shown only when status === "live" and value is a number. Stale
- * tiles say "Stale" and go grey via CSS. This cannot command equipment.
+ * A value is shown only when status === "live" and value is a number. Stale
+ * tiles say "Stale" and go grey via CSS. Missing points stay on screen as
+ * "No data yet". This cannot command equipment.
  */
 
+import { formatReading } from "@/hub/format-reading";
+import { groupPoints } from "@/hub/tile-groups";
 import type { LivePointJson } from "./useReadings";
 
 const STATUS_TEXT = {
-  missing: "No reading",
+  missing: "No data yet",
   stale: "Stale",
   bad: "Bad reading",
   unknown: "Unknown quality",
 };
-
-/** One decimal place, with a degree sign for F/C. Hub already hid non-live values. */
-export function formatReading(value: number, unit: string): string {
-  if (unit === "bool") return value >= 0.5 ? "On" : "Off";
-  if (unit === "code") return String(Math.round(value));
-  const shown = (Math.round(value * 10) / 10).toFixed(1);
-  if (unit === "F" || unit === "C") return shown + " \u00b0" + unit;
-  return shown + " " + unit;
-}
 
 function toneFor(point: LivePointJson, status: string, points: LivePointJson[]): string {
   if (status === "bad") return "fault";
@@ -42,6 +36,12 @@ function toneFor(point: LivePointJson, status: string, points: LivePointJson[]):
   return "live";
 }
 
+function lastUpdated(status: string, age: number | null, nodeId: string): string {
+  if (status === "missing" || age == null) return nodeId;
+  if (status === "live") return nodeId + " · " + Math.floor(age) + "s ago";
+  return nodeId + " · last heard " + Math.floor(age) + "s ago";
+}
+
 export function ReadingTiles({
   points,
   effectiveStatus,
@@ -52,40 +52,43 @@ export function ReadingTiles({
   hubAge: (point: LivePointJson) => number | null;
 }) {
   const classified = points.map((point) => ({
-    point,
+    ...point,
     status: effectiveStatus(point),
   }));
+  const groups = groupPoints(classified);
 
   return (
-    <div className="grid" id="points">
-      {classified.map(({ point, status }) => {
-        const age = hubAge(point);
-        let valueText: string;
-        let metaText: string;
-        if (status === "live" && typeof point.value === "number") {
-          valueText = formatReading(point.value, point.unit);
-          metaText = point.node_id + " · " + Math.floor(age ?? 0) + "s ago";
-        } else {
-          valueText = STATUS_TEXT[status as keyof typeof STATUS_TEXT] || "No reading";
-          metaText =
-            age == null
-              ? point.node_id
-              : point.node_id + " · last heard " + Math.floor(age) + "s ago";
-        }
-        return (
-          <article
-            key={point.point_id}
-            className="tile glass"
-            data-point={point.point_id}
-            data-status={status}
-            data-tone={toneFor(point, status, classified.map((row) => ({ ...row.point, status: row.status })))}
-          >
-            <div className="name">{point.name}</div>
-            <div className="value">{valueText}</div>
-            <div className="meta">{metaText}</div>
-          </article>
-        );
-      })}
+    <div id="points">
+      {groups.map((group) => (
+        <section key={group.id} className="tile-group" data-group={group.id}>
+          <h2 className="tile-group-title">{group.label}</h2>
+          <div className="grid">
+            {group.points.map((point) => {
+              const status = point.status;
+              const age = hubAge(point);
+              const valueText =
+                status === "live" && typeof point.value === "number"
+                  ? formatReading(point.value, point.unit)
+                  : STATUS_TEXT[status as keyof typeof STATUS_TEXT] || "No data yet";
+              return (
+                <article
+                  key={point.point_id}
+                  className="tile glass"
+                  data-point={point.point_id}
+                  data-status={status}
+                  data-tone={toneFor(point, status, classified)}
+                >
+                  <div className="name">{point.name}</div>
+                  <div className="value">{valueText}</div>
+                  <div className="meta">{lastUpdated(status, age, point.node_id)}</div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
+
+export { formatReading };

@@ -8,8 +8,13 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test } from "vitest";
 
+import { loadSettings } from "../hub/config";
+import { formatReading } from "../hub/format-reading";
 import { glanceFromPoints } from "../hub/glance";
+import { publicSnapshotFromMap } from "../hub/live";
+import { groupPoints } from "../hub/tile-groups";
 import { APP_SCREENS, PLACEHOLDER_COPY } from "../lib/screens";
+import { benchReadings } from "../simulator/bench-publisher";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -66,6 +71,7 @@ test("stale tiles stay grey and hide the value", () => {
   expect(css).toContain("--red:");
   const tiles = fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8");
   expect(tiles).toContain('stale: "Stale"');
+  expect(tiles).toContain('missing: "No data yet"');
   expect(tiles).toContain('status === "live" && typeof point.value === "number"');
 });
 
@@ -112,6 +118,40 @@ test("alerts screen uses severity colors and has no write UI", () => {
   const css = fs.readFileSync(path.join(REPO, "app", "globals.css"), "utf8");
   expect(css).toContain('[data-severity="critical"]');
   expect(css).toContain('[data-severity="warning"]');
+});
+
+test("every points.json sensor renders a live tile", () => {
+  const settings = loadSettings({});
+  const ids = settings.points.map((point) => point.id);
+  expect(ids.length).toBeGreaterThan(2);
+  const snap = publicSnapshotFromMap(settings, {}, new Date("2026-11-21T12:00:00Z"));
+  expect(snap.points.map((point) => point.point_id)).toEqual(ids);
+  expect(snap.points.every((point) => point.status === "missing")).toBe(true);
+
+  const groups = groupPoints(settings.points);
+  const groupedIds = groups.flatMap((group) => group.points.map((point) => point.id));
+  expect(groupedIds.sort()).toEqual([...ids].sort());
+  expect(groups.map((group) => group.label)).toEqual([
+    "Temperatures",
+    "Electrical",
+    "Thermostat calls",
+    "Board",
+  ]);
+
+  const tiles = fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8");
+  expect(tiles).toContain("data-point={point.point_id}");
+  expect(tiles).toContain("No data yet");
+  expect(tiles).toContain("tile-group");
+  expect(tiles).not.toContain("return_air_temp === ");
+
+  const simulated = benchReadings(0, "none").map((row) => row.point);
+  expect(simulated).toEqual(ids);
+
+  expect(formatReading(0, "bool")).toBe("Off");
+  expect(formatReading(1, "bool")).toBe("On");
+  expect(formatReading(5.2, "A")).toBe("5.2 A");
+  expect(formatReading(0, "code")).toBe("Normal");
+  expect(formatReading(3, "code")).toBe("Unknown code 3");
 });
 
 test("PWA manifest and icons exist", () => {

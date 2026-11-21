@@ -1,8 +1,9 @@
 /**
  * Evaluate committed rules against the reading log, then persist alerts.
  *
- * Called from POST /api/ingest (after store) and GET /api/cron/rules.
- * Failures are swallowed by the caller so ingest still returns { accepted }.
+ * Called from POST /api/ingest (after store), GET /api/cron/rules, and
+ * lazily from GET /api/alerts (30 s throttle). Failures are swallowed by
+ * ingest so it still returns { accepted }.
  * Alerts never go back to devices.
  */
 
@@ -17,6 +18,30 @@ export interface RulesRunResult {
   evaluated: boolean;
   active: number;
   mutations: number;
+}
+
+const LAZY_EVAL_MS = 30_000;
+let lastEvalMs = 0;
+
+/** Tests reset the 30 s GET /api/alerts throttle. */
+export function resetRulesEvalThrottle(): void {
+  lastEvalMs = 0;
+}
+
+/**
+ * Same as runRulesNow, but at most once per minIntervalMs.
+ * GET /api/alerts uses this so opening the screen is current without
+ * evaluating on every 5 s poll.
+ */
+export async function runRulesIfDue(
+  now: Date,
+  minIntervalMs: number = LAZY_EVAL_MS,
+): Promise<RulesRunResult | { skipped: true }> {
+  if (now.getTime() - lastEvalMs < minIntervalMs) {
+    return { skipped: true };
+  }
+  lastEvalMs = now.getTime();
+  return runRulesNow(now);
 }
 
 export async function runRulesNow(now: Date): Promise<RulesRunResult> {

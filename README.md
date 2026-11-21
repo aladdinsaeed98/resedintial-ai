@@ -4,7 +4,9 @@ Monitor-only bench for one ESP32 and two DS18B20 probes. The node publishes read
 
 A reading is `{point, value, unit, timestamp, quality}` on `hvac/{node}/reading`. The dashboard shows the number while samples are arriving, and replaces it with **Stale** when a point has been silent for 2 minutes (`received_at` from the cloud, not the node's clock). The last number is not left on screen.
 
-Fault rules live in `config/rules.json` and run on each ingest (and on a Vercel Cron tick for silent sensors). Many thermostats delay compressor start by about 5 minutes, so `call_no_compressor` may need its `after_s` raised from 180 to 360 after you watch a few real calls.
+Fault rules live in `config/rules.json` and run on each ingest, on a once-a-day Vercel Cron backstop, every 60 s from the home collector (`GET /api/cron/rules`), and lazily when you open Alerts. Many thermostats delay compressor start by about 5 minutes, so `call_no_compressor` may need its `after_s` raised from 180 to 360 after you watch a few real calls.
+
+**Stale sensor and node-offline detection depend on the collector or the dashboard being up.** The collector is the 24/7 tick. Opening Alerts also re-evaluates (at most every 30 s). If the collector PC is off and nobody opens the app, those time-based rules will not fire until the daily Vercel backstop. Phase C's healthchecks.io ping is what will catch the collector itself dying.
 
 Phase C (ntfy / email / healthchecks / audit log) is not started.
 
@@ -22,6 +24,8 @@ ESP32 / simulator  --MQTT-->  Mosquitto :1883 (LAN only)
                                     |
                                     | outbound HTTPS POST /api/ingest
                                     | Authorization: Bearer INGEST_SECRET
+                                    | outbound GET /api/cron/rules every 60 s
+                                    | Authorization: Bearer CRON_SECRET
                                     | local SQLite buffer + retry if offline
                                     v
                          Vercel Next.js + Clerk + Prisma/Postgres
@@ -167,7 +171,7 @@ PowerShell one-liner:
 | `DATABASE_URL` | yes (Docker or Neon) | yes (Marketplace) |
 | `DIRECT_URL` | yes | yes (Neon direct) |
 | `INGEST_SECRET` | yes | yes |
-| `CRON_SECRET` | yes (local cron tests) | yes (Vercel Cron) |
+| `CRON_SECRET` | yes (collector tick) | yes (Vercel Cron backstop) |
 | `HUB_INGEST_URL` | yes (collector) | no (unused on Vercel) |
 | `HVAC_MQTT_HOST` / `HVAC_MQTT_PORT` | yes (collector) | **no** |
 | `HVAC_DB` | optional (collector buffer) | **no** |
@@ -187,7 +191,7 @@ Sign in with the Clerk user you created. Footer still says **Read only**. After 
 npx prisma migrate deploy
 ```
 
-Set `CRON_SECRET` in the Vercel project env (same long random string as `.env.local`). Hobby cron may only run once a day; ingest still evaluates rules on every collector POST.
+Set `CRON_SECRET` in the Vercel project env (same long random string as `.env.local`). Vercel Hobby cron is a once-a-day backstop (`0 9 * * *`). The collector ticks `/api/cron/rules` every 60 s; opening Alerts also evaluates (throttled to 30 s).
 
 ## Flash the ESP32
 

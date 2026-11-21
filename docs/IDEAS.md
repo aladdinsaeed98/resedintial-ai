@@ -18,7 +18,8 @@ Not started. Do not build these until the matching plan phase is open.
   `/api/erase`.
 - Raise `call_no_compressor.after_s` from 180 to 360 if the installed
   thermostat waits ~5 minutes before starting the compressor.
-- Vercel Hobby cron may only run daily even when `vercel.json` says every
-  minute. Ingest still evaluates on every collector POST.
+- Vercel Hobby cron is a daily backstop (`0 9 * * *`). The collector ticks
+  `/api/cron/rules` every 60 s; Alerts evaluates lazily. Phase C
+  healthchecks.io is what should catch the collector dying.
 - iOS splash screens beyond `apple-touch-icon`.
 - Wrapping the PWA as a store app later.

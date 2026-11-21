@@ -15,6 +15,7 @@
 import mqtt, { type MqttClient } from "mqtt";
 
 import { formatTimestamp } from "../hub/clock";
+import { DEFAULT_POINTS_FILE, loadPoints } from "../hub/config";
 import { readingTopic } from "../hub/topics";
 
 export const DEFAULT_INTERVAL_SECONDS = 10;
@@ -41,15 +42,11 @@ export interface SimPoint {
   unit: string;
 }
 
-const UNITS: Record<string, string> = {
-  return_air_temp: "F",
-  supply_air_temp: "F",
-  call_y: "bool",
-  call_g: "bool",
-  compressor_amps: "A",
-  blower_amps: "A",
-  led_code: "code",
-};
+function defaultValue(unit: string): number {
+  if (unit === "bool" || unit === "code") return 0;
+  if (unit === "A") return 0.1;
+  return 70;
+}
 
 /** Two temps that bump 0.1 °F every six steps, then wrap. Healthy delta ~18 °F. */
 export function temperatures(step: number): Record<string, number> {
@@ -64,12 +61,9 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function point(id: string, value: number): SimPoint {
-  return { point: id, value, unit: UNITS[id] ?? "F" };
-}
-
 /**
- * One step of simulated points. `none` is idle (calls off, amps near 0, LED 0)
+ * One step of simulated points. Every id in config/points.json is published
+ * so Live tiles fill in. `none` is idle (calls off, amps near 0, LED 0)
  * so a long run of the simulator does not false-alarm. Fault ids hold the
  * signature; timing rules still need the engine to see enough elapsed time.
  */
@@ -119,15 +113,24 @@ export function benchReadings(step: number, fault: FaultId = "none"): SimPoint[]
     led = 3;
   }
 
-  const out: SimPoint[] = [
-    point("return_air_temp", returnAir),
-    ...(omitSupply ? [] : [point("supply_air_temp", supplyAir)]),
-    point("call_y", callY),
-    point("call_g", callG),
-    point("compressor_amps", compressor),
-    point("blower_amps", blower),
-    point("led_code", led),
-  ];
+  const values: Record<string, number> = {
+    return_air_temp: returnAir,
+    supply_air_temp: supplyAir,
+    call_y: callY,
+    call_g: callG,
+    compressor_amps: compressor,
+    blower_amps: blower,
+    led_code: led,
+  };
+  const out: SimPoint[] = [];
+  for (const spec of loadPoints(DEFAULT_POINTS_FILE)) {
+    if (omitSupply && spec.id === "supply_air_temp") continue;
+    out.push({
+      point: spec.id,
+      value: values[spec.id] ?? defaultValue(spec.unit),
+      unit: spec.unit,
+    });
+  }
   return out;
 }
 

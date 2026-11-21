@@ -42,6 +42,7 @@ export interface Settings {
   port: number;
   ingest_url: string;
   ingest_secret: string;
+  cron_secret: string;
 }
 
 /**
@@ -175,5 +176,6 @@ export function loadSettings(
     port: positiveInt(source, "HVAC_PORT", DEFAULT_HTTP_PORT),
     ingest_url: (source.HUB_INGEST_URL ?? DEFAULT_INGEST_URL).trim() || DEFAULT_INGEST_URL,
     ingest_secret: (source.INGEST_SECRET ?? "").trim(),
+    cron_secret: (source.CRON_SECRET ?? "").trim(),
   };
 }

@@ -2,6 +2,10 @@
  * Alerts HTTP surface: Clerk on GET, 405 on writes, cron secret on the tick.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { afterEach, expect, test } from "vitest";
 
 import { GET as getAlerts, POST as postAlerts } from "../app/api/alerts/route";
@@ -11,9 +15,15 @@ import { POST as postReadings } from "../app/api/readings/route";
 import { MemoryAlertStore, setAlertStore } from "../hub/alert-store";
 import { clerkKeysConfigured } from "../hub/clerk-keys";
 import { MemoryIngestSink, setIngestSink } from "../hub/ingest-runtime";
-import { setReadingSeriesLoader } from "../hub/rules-runner";
+import { Quality, type StoredReading } from "../hub/models";
+import {
+  resetRulesEvalThrottle,
+  runRulesIfDue,
+  setReadingSeriesLoader,
+} from "../hub/rules-runner";
 import { setAuthLookup } from "../hub/session";
 
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SECRET = "test-ingest-secret-value";
 const CRON = "test-cron-secret-value";
 
@@ -30,6 +40,7 @@ afterEach(() => {
   setIngestSink(undefined);
   setReadingSeriesLoader(undefined);
   setAuthLookup(undefined);
+  resetRulesEvalThrottle();
   for (const [key, value] of Object.entries(savedEnv)) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -93,6 +104,56 @@ test("GET /api/alerts requires a Clerk session when keys are real", async () => 
   const response = await getAlerts();
   expect(response.status).toBe(401);
   expect(await response.json()).toEqual({ error: "unauthorized" });
+});
+
+test("Vercel Hobby cron is a once-a-day backstop", () => {
+  const vercel = JSON.parse(
+    fs.readFileSync(path.join(REPO, "vercel.json"), "utf8"),
+  ) as { crons: Array<{ path: string; schedule: string }> };
+  expect(vercel.crons).toHaveLength(1);
+  expect(vercel.crons[0].path).toBe("/api/cron/rules");
+  expect(vercel.crons[0].schedule).toBe("0 9 * * *");
+});
+
+test("time-based rules throttle is 30 seconds", async () => {
+  setAlertStore(new MemoryAlertStore());
+  setReadingSeriesLoader(async () => []);
+  const now = new Date("2026-11-21T12:00:00Z");
+  const first = await runRulesIfDue(now, 30_000);
+  expect(first).not.toHaveProperty("skipped");
+  const second = await runRulesIfDue(new Date(now.getTime() + 1_000), 30_000);
+  expect(second).toEqual({ skipped: true });
+  const third = await runRulesIfDue(new Date(now.getTime() + 31_000), 30_000);
+  expect(third).not.toHaveProperty("skipped");
+});
+
+test("GET /api/alerts lazily evaluates time-based rules", async () => {
+  setAlertStore(new MemoryAlertStore());
+  const received = new Date(Date.now() - 200_000);
+  const series: StoredReading[] = [
+    {
+      point_id: "return_air_temp",
+      node_id: "bench",
+      value: 72.4,
+      unit: "F",
+      quality: Quality.GOOD,
+      device_timestamp: received,
+      received_at: received,
+      time_source: "hub",
+    },
+  ];
+  setReadingSeriesLoader(async () => series);
+
+  const response = await getAlerts();
+  expect(response.status).toBe(200);
+  const json = (await response.json()) as {
+    alerts: Array<{ rule_id: string; subject: string; cleared_at: string | null }>;
+    active_count: number;
+  };
+  expect(json.active_count).toBeGreaterThan(0);
+  expect(json.alerts.some((row) => row.rule_id === "stale_sensor" && row.cleared_at === null)).toBe(
+    true,
+  );
 });
 
 test("ingest still returns only { accepted } after rules run", async () => {

@@ -9,7 +9,9 @@ import { NextResponse } from "next/server";
 
 import { getAlertStore } from "@/hub/alert-store";
 import type { AlertRecord } from "@/hub/alerts";
+import { SystemClock } from "@/hub/clock";
 import { methodNotAllowed } from "@/hub/reject-write";
+import { runRulesIfDue } from "@/hub/rules-runner";
 import { loadRules } from "@/hub/rules";
 import { dashboardUserId } from "@/hub/session";
 
@@ -37,6 +39,12 @@ export async function GET(): Promise<NextResponse> {
   const userId = await dashboardUserId();
   if (userId === null) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await runRulesIfDue(new SystemClock().now());
+  } catch (error) {
+    console.error("lazy rules evaluation failed", error);
   }
 
   const store = getAlertStore();

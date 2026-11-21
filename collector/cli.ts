@@ -6,7 +6,8 @@
  *
  *   npm run collector
  *
- * Needs HUB_INGEST_URL and INGEST_SECRET in .env.local (or the environment).
+ * Needs HUB_INGEST_URL, INGEST_SECRET, and CRON_SECRET in .env.local.
+ * Every 60 s it also GETs /api/cron/rules (Hobby Vercel cron is only daily).
  */
 
 import fs from "node:fs";
@@ -16,9 +17,12 @@ import { SystemClock } from "../hub/clock";
 import { loadSettings } from "../hub/config";
 import { MqttGateway } from "../hub/gateway";
 import { PendingBuffer } from "./buffer";
+import { cronUrlFromIngest, pingCronOnce } from "./cron-tick";
 import { flushOnce } from "./forwarder";
 
 const FLUSH_MS = 2000;
+const CRON_MS = 60_000;
+const CRON_WARN_MS = 5 * 60_000;
 
 /** Load .env.local without adding a dotenv dependency. Shell env wins. */
 function loadDotEnvLocal(): void {
@@ -78,13 +82,44 @@ export async function main(): Promise<void> {
     }
   };
 
+  const cronUrl = cronUrlFromIngest(settings.ingest_url);
+  let lastCronWarn = 0;
+  const pingCron = async () => {
+    try {
+      const result = await pingCronOnce({
+        cronUrl,
+        cronSecret: settings.cron_secret,
+      });
+      if (result.skipped || result.ok) {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastCronWarn >= CRON_WARN_MS) {
+        lastCronWarn = now;
+        console.warn(`cron tick failed (status ${result.status || "network"})`);
+      }
+    } catch (error) {
+      const now = Date.now();
+      if (now - lastCronWarn >= CRON_WARN_MS) {
+        lastCronWarn = now;
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`cron tick failed (${message})`);
+      }
+    }
+  };
+
   const timer = setInterval(() => {
     void tick();
   }, FLUSH_MS);
+  const cronTimer = setInterval(() => {
+    void pingCron();
+  }, CRON_MS);
   void tick();
+  void pingCron();
 
   const shutdown = () => {
     clearInterval(timer);
+    clearInterval(cronTimer);
     gateway.close();
     buffer.close();
     process.exit(0);

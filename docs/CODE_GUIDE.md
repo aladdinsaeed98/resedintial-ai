@@ -113,12 +113,13 @@ sign-up, `/api/ingest`, `/api/health`, `/api/cron/rules`, and `/openapi.json`.
 | `app/globals.css` | Dark glass. Cyan = cooling, orange = heating, red = fault, grey + Stale. |
 | `app/api/ingest/route.ts` | POST only. Shared secret. Stores readings, evaluates rules. Never returns a command. |
 | `app/api/readings/route.ts` | GET for the tiles. 401 without a Clerk session when keys are real. Writes 405. |
-| `app/api/alerts/route.ts` | GET for the Alerts screen. Clerk when keys are real. Writes 405. |
+| `app/api/alerts/route.ts` | GET for the Alerts screen. Clerk when keys are real. Lazily evaluates rules (30 s). Writes 405. |
 | `app/api/cron/rules/route.ts` | GET. `CRON_SECRET`. Re-evaluates stale_sensor / node_offline. |
 | `app/api/health/route.ts` | GET. Public so Vercel can ping it. |
 | `app/openapi.json/route.ts` | Documents GET-only people paths plus collector ingest. |
 | `components/AppShell.tsx` | Brand, Clerk `UserButton`, seven-link nav, Read only footer. |
-| `components/LivePage.tsx` | Polls `/api/readings` every 1 s. Shows a number only for live numeric values. |
+| `components/LivePage.tsx` | Polls `/api/readings` every 1 s. One grouped tile per points.json id. |
+| `hub/tile-groups.ts` | Temperatures / Electrical / Thermostat calls / Board from each point's unit. |
 | `public/icons/` `public/sw.js` | PWA icons and a network-only service worker (does not cache readings). |
 
 ## Local collector (`collector/`, `server.ts`)
@@ -128,9 +129,10 @@ Runs on the Windows PC or Pi next to Mosquitto. Outbound only.
 | File | What it does |
 |---|---|
 | `server.ts` | Process entry: `npm run collector` / `npm run hub`. |
-| `collector/cli.ts` | Load `.env.local`, subscribe, flush every 2 s. Never publishes. |
+| `collector/cli.ts` | Load `.env.local`, subscribe, flush every 2 s, cron tick every 60 s. Never publishes. |
 | `collector/buffer.ts` | SQLite pending queue. Survives a Wi-Fi drop. |
 | `collector/forwarder.ts` | POST batch to ingest. Ignores extra keys on the JSON response. |
+| `collector/cron-tick.ts` | Outbound GET `/api/cron/rules`. One attempt; failures wait for the next minute. |
 
 ## Firmware (`firmware/bench_node/`)
 
@@ -164,7 +166,7 @@ Desk stand-in for the ESP32 until the board is flashed. Same topic and JSON.
 | `prisma/migrations/` | Apply with `npx prisma migrate deploy` (includes the alerts table). |
 | `config/rules.json` | Versioned thresholds. Bump `version` on every change. |
 | `config/led_codes.json` | Placeholder: `0` is normal. No guessed brand table. |
-| `vercel.json` | Cron: GET `/api/cron/rules` every minute (Hobby may only run daily). |
+| `vercel.json` | Cron: GET `/api/cron/rules` once a day (`0 9 * * *`) as a Hobby backstop. |
 | `.env.example` | Every variable, placeholders, comments on where to get each. Copy to `.env.local`. Includes empty-ready `CRON_SECRET`. |
 | `.env.local` | Gitignored. Localhost:3000 + collector. |
 | `.env.production` | Committed with **empty** values. Real prod keys live in the Vercel UI. |

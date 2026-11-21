@@ -64,6 +64,7 @@ class World {
       port: 3000,
       ingest_url: "http://localhost:3000/api/ingest",
       ingest_secret: "test-ingest-secret",
+      cron_secret: "test-cron-secret",
     };
     this.store = new ReadingStore(this.settings.database_path);
     this.gateway = new MqttGateway(this.settings, this.store, this.clock);
