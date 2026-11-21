@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 
 import { SystemClock } from "@/hub/clock";
 import { loadSettings } from "@/hub/config";
+import { demoReadingsPayload, isDemoMode } from "@/hub/demo";
 import { readingsPayload } from "@/hub/http";
 import { collectorIsFresh } from "@/hub/ingest";
 import { publicSnapshotFromMap } from "@/hub/live";
@@ -26,6 +27,12 @@ export async function GET(): Promise<NextResponse> {
   const userId = await dashboardUserId();
   if (userId === null) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  if (isDemoMode()) {
+    return NextResponse.json(demoReadingsPayload(), {
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 
   const injected = getRuntime();

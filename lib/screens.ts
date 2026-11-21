@@ -1,8 +1,8 @@
 /**
  * The seven signed-in screens. Labels are the only nav text — no counts.
  *
- * History, Codes, Ask, and Settings are placeholders until later phases.
- * Home and Live read GET /api/readings. Alerts reads GET /api/alerts.
+ * Home / Live / Alerts / History are live. Codes and Settings stay later-phase
+ * placeholders. Ask is a styled "coming soon" AI placeholder (Claude later).
  * Nothing here writes.
  */
 
@@ -16,11 +16,14 @@ export interface AppScreen {
 export const APP_SCREENS: readonly AppScreen[] = [
   { href: "/", label: "Home", title: "Home", laterPhase: false },
   { href: "/live", label: "Live", title: "Live", laterPhase: false },
-  { href: "/history", label: "History", title: "History", laterPhase: true },
+  { href: "/history", label: "History", title: "History", laterPhase: false },
   { href: "/codes", label: "Codes", title: "Codes", laterPhase: true },
   { href: "/alerts", label: "Alerts", title: "Alerts", laterPhase: false },
-  { href: "/ask", label: "Ask", title: "Ask", laterPhase: true },
+  { href: "/ask", label: "Ask", title: "Ask", laterPhase: false },
   { href: "/settings", label: "Settings", title: "Settings", laterPhase: true },
 ];
 
 export const PLACEHOLDER_COPY = "Coming in a later phase";
+
+export const ASK_COMING_SOON =
+  "Coming soon: AI troubleshooting. Answers will be grounded in live readings only.";

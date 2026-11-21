@@ -1,19 +1,19 @@
 /**
- * Clerk dark look. Matches the glass dashboard. Sign-in cannot command HVAC.
+ * Clerk dark look. Matches the near-black dashboard. Sign-in cannot command HVAC.
  */
 
 export const clerkAppearance = {
   variables: {
     colorPrimary: "#22d3ee",
-    colorBackground: "#0b1220",
-    colorInputBackground: "rgba(8, 14, 26, 0.85)",
-    colorInputText: "#e8eef7",
-    colorText: "#e8eef7",
-    colorTextSecondary: "#93a4b8",
+    colorBackground: "#0a0a0a",
+    colorInputBackground: "rgba(0, 0, 0, 0.85)",
+    colorInputText: "#ffffff",
+    colorText: "#ffffff",
+    colorTextSecondary: "#8a8a8a",
     colorDanger: "#ff4d6d",
     colorSuccess: "#22d3ee",
-    borderRadius: "0.9rem",
-    fontFamily: "var(--font-body), \"Segoe UI\", sans-serif",
+    borderRadius: "0.6rem",
+    fontFamily: "var(--font-body), Inter, \"Segoe UI\", sans-serif",
   },
   elements: {
     card: "clerk-card",

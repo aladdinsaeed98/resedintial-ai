@@ -1,5 +1,5 @@
 /**
- * Web app manifest. Dark theme-color, standalone display, Add to Home Screen.
+ * Web app manifest. Near-black theme, standalone display, Add to Home Screen.
  */
 
 import type { MetadataRoute } from "next";
@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#05070c",
-    theme_color: "#05070c",
+    background_color: "#000000",
+    theme_color: "#0a0a0a",
     icons: [
       {
         src: "/icons/icon-192.png",

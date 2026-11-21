@@ -1,5 +1,5 @@
 /**
- * Phase A shell: seven screens, placeholders, stale styling, no write UI.
+ * Shell + redesign: seven screens, placeholders, stale styling, no write UI.
  */
 
 import fs from "node:fs";
@@ -13,7 +13,7 @@ import { formatReading } from "../hub/format-reading";
 import { glanceFromPoints } from "../hub/glance";
 import { publicSnapshotFromMap } from "../hub/live";
 import { groupPoints } from "../hub/tile-groups";
-import { APP_SCREENS, PLACEHOLDER_COPY } from "../lib/screens";
+import { APP_SCREENS, ASK_COMING_SOON, PLACEHOLDER_COPY } from "../lib/screens";
 import { benchReadings } from "../simulator/bench-publisher";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -38,11 +38,13 @@ test("app shell has seven screens and no count badges", () => {
   expect(shell).not.toContain("tab-count");
   expect(shell).not.toMatch(/>\s*0\s*</);
   expect(shell).toContain("tab-label");
+  expect(shell).toContain("side-rail");
+  expect(shell).toContain("DemoBanner");
 });
 
 test("later-phase screens are styled placeholders", () => {
   const later = APP_SCREENS.filter((screen) => screen.laterPhase);
-  expect(later).toHaveLength(4);
+  expect(later.map((screen) => screen.label)).toEqual(["Codes", "Settings"]);
   const placeholder = fs.readFileSync(
     path.join(REPO, "components", "PlaceholderPage.tsx"),
     "utf8",
@@ -62,6 +64,15 @@ test("later-phase screens are styled placeholders", () => {
   }
 });
 
+test("ask screen is a coming-soon AI placeholder", () => {
+  const page = fs.readFileSync(path.join(REPO, "app", "(app)", "ask", "page.tsx"), "utf8");
+  expect(page).toContain("AskPlaceholder");
+  expect(page).not.toContain("PlaceholderPage");
+  const ask = fs.readFileSync(path.join(REPO, "components", "AskPlaceholder.tsx"), "utf8");
+  expect(ask).toContain("ASK_COMING_SOON");
+  expect(ASK_COMING_SOON.toLowerCase()).toContain("ai troubleshooting");
+});
+
 test("stale tiles stay grey and hide the value", () => {
   const css = fs.readFileSync(path.join(REPO, "app", "globals.css"), "utf8");
   expect(css).toContain('[data-status="stale"]');
@@ -69,10 +80,14 @@ test("stale tiles stay grey and hide the value", () => {
   expect(css).toContain("--cyan:");
   expect(css).toContain("--orange:");
   expect(css).toContain("--red:");
+  expect(css).toContain("--bg: #000000");
+  expect(css).toContain("prefers-reduced-motion");
   const tiles = fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8");
   expect(tiles).toContain('stale: "Stale"');
   expect(tiles).toContain('missing: "No data yet"');
   expect(tiles).toContain('status === "live" && typeof point.value === "number"');
+  expect(tiles).toContain("plain_label");
+  expect(tiles).toContain("Sparkline");
 });
 
 test("home glance never invents Idle and flags stale vs cooling", () => {
@@ -81,13 +96,13 @@ test("home glance never invents Idle and flags stale vs cooling", () => {
       { point_id: "return_air_temp", status: "stale", value: null },
       { point_id: "supply_air_temp", status: "stale", value: null },
     ]).label,
-  ).toBe("Stale");
+  ).toBe("Needs attention");
   expect(
     glanceFromPoints([
       { point_id: "return_air_temp", status: "live", value: 72 },
       { point_id: "supply_air_temp", status: "live", value: 56 },
     ]),
-  ).toEqual({ kind: "cooling", label: "Cooling", deltaT: 16 });
+  ).toEqual({ kind: "cooling", label: "Running normally", deltaT: 16 });
   expect(
     glanceFromPoints([
       { point_id: "return_air_temp", status: "live", value: 70 },
@@ -98,7 +113,7 @@ test("home glance never invents Idle and flags stale vs cooling", () => {
     glanceFromPoints([{ point_id: "return_air_temp", status: "bad", value: null }]).kind,
   ).toBe("fault");
   expect(glanceFromPoints([{ point_id: "return_air_temp", status: "live", value: 72 }]).label).toBe(
-    "Live",
+    "Running normally",
   );
 });
 
@@ -106,6 +121,7 @@ test("alerts screen uses severity colors and has no write UI", () => {
   const alerts = fs.readFileSync(path.join(REPO, "components", "AlertsView.tsx"), "utf8");
   expect(alerts).toContain("data-severity");
   expect(alerts).toContain("cleared");
+  expect(alerts).toContain("What should I do?");
   expect(alerts.toLowerCase()).not.toContain("<form");
   expect(alerts.toLowerCase()).not.toContain("<button");
   expect(alerts).not.toContain("innerHTML");
@@ -115,9 +131,21 @@ test("alerts screen uses severity colors and has no write UI", () => {
   const home = fs.readFileSync(path.join(REPO, "components", "HomeView.tsx"), "utf8");
   expect(home).toContain("activeCount > 0");
   expect(home).not.toMatch(/>\s*0\s*</);
+  expect(home).toContain("AirflowVisual");
   const css = fs.readFileSync(path.join(REPO, "app", "globals.css"), "utf8");
   expect(css).toContain('[data-severity="critical"]');
   expect(css).toContain('[data-severity="warning"]');
+});
+
+test("history screen is a sortable table with empty-state copy", () => {
+  const page = fs.readFileSync(path.join(REPO, "app", "(app)", "history", "page.tsx"), "utf8");
+  expect(page).toContain("HistoryView");
+  expect(page).not.toContain("PlaceholderPage");
+  const history = fs.readFileSync(path.join(REPO, "components", "HistoryView.tsx"), "utf8");
+  expect(history).toContain("data-table");
+  expect(history).toContain("No history yet");
+  expect(history).toContain("HVAC_DEMO=1");
+  expect(history.toLowerCase()).not.toContain("<form");
 });
 
 test("every points.json sensor renders a live tile", () => {
@@ -156,7 +184,7 @@ test("every points.json sensor renders a live tile", () => {
 
 test("PWA manifest and icons exist", () => {
   const manifest = fs.readFileSync(path.join(REPO, "app", "manifest.ts"), "utf8");
-  expect(manifest).toContain('theme_color: "#05070c"');
+  expect(manifest).toContain('theme_color: "#0a0a0a"');
   expect(manifest).toContain('display: "standalone"');
   expect(manifest).toContain("/icons/icon-192.png");
   expect(manifest).toContain("/icons/icon-512.png");
@@ -168,4 +196,5 @@ test("PWA manifest and icons exist", () => {
   const sw = fs.readFileSync(path.join(REPO, "public", "sw.js"), "utf8");
   expect(sw).toContain("never cache /api/readings");
   expect(sw).toContain("/api/alerts");
+  expect(sw).toContain("/api/history");
 });

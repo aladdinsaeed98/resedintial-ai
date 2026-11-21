@@ -6,13 +6,15 @@ Not started. Do not build these until the matching plan phase is open.
   delta-T alone. Home currently uses live return vs supply only as a color
   hint, and never shows Idle. `call_w` is not in points.json yet.
 - History charts (24 h / 7 d) with large axis labels. Do not squeeze ticks.
+  The History screen is a sortable table for now; charts wait for Phase 2.
 - Alert and code count badges on the tab bar — never a stray `0`. Home
   already shows an active-alert count only when it is not zero.
-- Ask-screen grounded AI, Settings thresholds, per-brand LED code tables
-  (Plan phases 3–5). `config/led_codes.json` only treats 0 as normal;
-  any other value is an unknown warning.
-- Offline PWA cache for the shell CSS. Do not cache `/api/readings` or
-  `/api/alerts`.
+- Ask-screen grounded AI (Claude / templates), Settings thresholds, per-brand
+  LED code tables (Plan phases 3–5). `config/led_codes.json` only treats 0 as
+  normal; any other value is an unknown warning. Ask is a styled coming-soon
+  placeholder until that PR.
+- Offline PWA cache for the shell CSS. Do not cache `/api/readings`,
+  `/api/alerts`, or `/api/history`.
 - Phase C: ntfy push, failure emails, healthchecks.io, audit log. The
   engine already calls an empty `notifyAlert` hook. Do not port POST
   `/api/erase`.
@@ -21,5 +23,6 @@ Not started. Do not build these until the matching plan phase is open.
 - Vercel Hobby cron is a daily backstop (`0 9 * * *`). The collector ticks
   `/api/cron/rules` every 60 s; Alerts evaluates lazily. Phase C
   healthchecks.io is what should catch the collector dying.
+- Persist real sparkline history from Postgres for non-demo Live tiles.
 - iOS splash screens beyond `apple-touch-icon`.
 - Wrapping the PWA as a store app later.

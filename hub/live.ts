@@ -19,6 +19,8 @@ export type LiveStatus = "missing" | "live" | "stale" | "bad" | "unknown";
 export interface LivePoint {
   point_id: string;
   name: string;
+  plain_label: string | null;
+  description: string | null;
   node_id: string;
   unit: string;
   status: LiveStatus;
@@ -43,6 +45,8 @@ export function asPublicDict(point: LivePoint): Record<string, unknown> {
   return {
     point_id: point.point_id,
     name: point.name,
+    plain_label: point.plain_label,
+    description: point.description,
     node_id: point.node_id,
     unit: point.unit,
     status: point.status,
@@ -142,10 +146,15 @@ export function classify(
   const name = spec?.name ?? pointId;
   const fallbackUnit = spec?.unit ?? "";
   const fallbackNode = spec?.node_id ?? "";
+  const plainLabel = spec?.plain_label ?? null;
+  const description = spec?.description ?? null;
+
   if (!reading) {
     return {
       point_id: pointId,
       name,
+      plain_label: plainLabel,
+      description,
       node_id: fallbackNode,
       unit: fallbackUnit,
       status: "missing",
@@ -184,6 +193,8 @@ export function classify(
   return {
     point_id: pointId,
     name,
+    plain_label: plainLabel,
+    description,
     node_id: reading.node_id || fallbackNode,
     unit: reading.unit || fallbackUnit,
     status,

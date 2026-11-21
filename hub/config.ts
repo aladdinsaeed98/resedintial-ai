@@ -28,6 +28,10 @@ export interface PointSpec {
   name: string;
   unit: string;
   node_id: string;
+  /** Plain-language label for the UI (optional). */
+  plain_label?: string;
+  /** Tooltip / help text for the sensor (optional). */
+  description?: string;
 }
 
 /** Frozen hub / collector settings for one process. */
@@ -95,16 +99,29 @@ export function defaultDbPath(): string {
 /** Load and validate the point list. Invalid ids make the hub refuse to start. */
 export function loadPoints(filePath: string): PointSpec[] {
   const data = JSON.parse(fs.readFileSync(filePath, "utf8")) as {
-    points?: Array<{ id: unknown; name: unknown; unit: unknown; node_id: unknown }>;
+    points?: Array<{
+      id: unknown;
+      name: unknown;
+      unit: unknown;
+      node_id: unknown;
+      plain_label?: unknown;
+      description?: unknown;
+    }>;
   };
   const points: PointSpec[] = [];
   const seen = new Set<string>();
   for (const item of data.points ?? []) {
+    const plain =
+      item.plain_label == null ? undefined : String(item.plain_label).trim() || undefined;
+    const description =
+      item.description == null ? undefined : String(item.description).trim() || undefined;
     const spec: PointSpec = {
       id: String(item.id),
       name: String(item.name),
       unit: String(item.unit),
       node_id: String(item.node_id),
+      ...(plain ? { plain_label: plain } : {}),
+      ...(description ? { description } : {}),
     };
     if (!POINT_RE.test(spec.id)) {
       throw new Error(`invalid point id ${spec.id}`);

@@ -3,42 +3,56 @@
     {
       "id": "return_air_temp",
       "name": "Return air",
+      "plain_label": "Air coming in",
+      "description": "Temperature of air entering the furnace from the return duct.",
       "unit": "F",
       "node_id": "bench"
     },
     {
       "id": "supply_air_temp",
       "name": "Supply air",
+      "plain_label": "Air coming out",
+      "description": "Temperature of air leaving the coil into the supply plenum.",
       "unit": "F",
       "node_id": "bench"
     },
     {
       "id": "call_y",
       "name": "Cooling call (Y)",
+      "plain_label": "Cooling request",
+      "description": "Thermostat Y call — the thermostat is asking for cooling.",
       "unit": "bool",
       "node_id": "bench"
     },
     {
       "id": "call_g",
       "name": "Fan call (G)",
+      "plain_label": "Fan request",
+      "description": "Thermostat G call — the thermostat is asking for the blower.",
       "unit": "bool",
       "node_id": "bench"
     },
     {
       "id": "compressor_amps",
       "name": "Compressor amps",
+      "plain_label": "Compressor draw",
+      "description": "Current on one compressor conductor. Near zero means not running.",
       "unit": "A",
       "node_id": "bench"
     },
     {
       "id": "blower_amps",
       "name": "Blower amps",
+      "plain_label": "Blower draw",
+      "description": "Current on one blower conductor. Near zero means the fan is off.",
       "unit": "A",
       "node_id": "bench"
     },
     {
       "id": "led_code",
       "name": "Furnace LED code",
+      "plain_label": "Board status light",
+      "description": "Furnace board LED pattern as a number. Zero means normal.",
       "unit": "code",
       "node_id": "bench"
     }

@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { getAlertStore } from "@/hub/alert-store";
 import type { AlertRecord } from "@/hub/alerts";
 import { SystemClock } from "@/hub/clock";
+import { alertHint, demoAlertsPayload, isDemoMode } from "@/hub/demo";
 import { methodNotAllowed } from "@/hub/reject-write";
 import { runRulesIfDue } from "@/hub/rules-runner";
 import { loadRules } from "@/hub/rules";
@@ -32,6 +33,7 @@ function asPublic(row: AlertRecord): Record<string, unknown> {
     cleared_at: row.clearedAt ? row.clearedAt.toISOString() : null,
     occurrence: row.occurrence,
     detail: row.detail,
+    hint: alertHint(row.ruleId),
   };
 }
 
@@ -39,6 +41,12 @@ export async function GET(): Promise<NextResponse> {
   const userId = await dashboardUserId();
   if (userId === null) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  if (isDemoMode()) {
+    return NextResponse.json(demoAlertsPayload(), {
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 
   try {
