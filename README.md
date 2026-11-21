@@ -30,7 +30,9 @@ A webhook the other way (Mosquitto bridging inbound) would mean opening the hous
 
 ## Software pass
 
-Needs Node.js 20 or newer. In PowerShell, from the repo folder:
+Needs **Node.js 20.9 or newer**. Node 24 is supported, including 24.19 on Windows. `better-sqlite3` 12.x ships a win32/x64 prebuild for Node 24, so `npm install` does not need Visual Studio C++.
+
+In PowerShell, from the repo folder:
 
 ```powershell
 Copy-Item .env.example .env.local
