@@ -147,7 +147,7 @@ Desk stand-in for the ESP32 until the board is flashed. Same topic and JSON.
 | `.env.example` | Every variable, placeholders, comments on where to get each. Copy to `.env.local`. |
 | `.env.local` | Gitignored. Localhost:3000 + collector. |
 | `.env.production` | Committed with **empty** values. Real prod keys live in the Vercel UI. |
-| `package.json` | `npm run dev` (Next :3000), `npm run collector`, `npm test`, `postinstall` prisma generate. |
+| `package.json` | `npm run dev` (Next :3000), `npm run collector`, `npm test`, `postinstall` prisma generate. Node `>=20.9` (Node 24 on Windows included). `better-sqlite3` 12.x has a Node 24 win32 prebuild, so install does not need Visual Studio. |
 | `vitest.config.ts` | Tells Vitest to collect `tests/` and run them in Node. |
 
 ### `config/points.json`

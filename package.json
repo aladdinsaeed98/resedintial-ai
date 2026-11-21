@@ -17,12 +17,12 @@
     "db:migrate:dev": "prisma migrate dev"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.10.7",
     "@prisma/client": "^6.19.3",
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^12.11.1",
     "mqtt": "^5.10.4",
     "next": "^15.5.4",
     "prisma": "^6.19.3",
