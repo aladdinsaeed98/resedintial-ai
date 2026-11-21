@@ -24,12 +24,14 @@ export interface AlertJson {
   cleared_at: string | null;
   occurrence: number;
   detail: Record<string, unknown>;
+  hint?: string;
 }
 
 export interface AlertsPayload {
   alerts: AlertJson[];
   active_count: number;
   rules_version: number;
+  demo?: boolean;
 }
 
 export function useAlerts() {

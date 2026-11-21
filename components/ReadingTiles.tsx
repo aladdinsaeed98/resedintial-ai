@@ -1,5 +1,6 @@
 /**
- * One glass tile per configured point, grouped from points.json units.
+ * Sensor cards: plain-language label, technical subtitle, value, status,
+ * sparkline when history exists, and a tooltip. Shared by Home and Live.
  *
  * A value is shown only when status === "live" and value is a number. Stale
  * tiles say "Stale" and go grey via CSS. Missing points stay on screen as
@@ -8,6 +9,8 @@
 
 import { formatReading } from "@/hub/format-reading";
 import { groupPoints } from "@/hub/tile-groups";
+import { Sparkline } from "./Sparkline";
+import { Skeleton } from "./Skeleton";
 import type { LivePointJson } from "./useReadings";
 
 const STATUS_TEXT = {
@@ -15,6 +18,14 @@ const STATUS_TEXT = {
   stale: "Stale",
   bad: "Bad reading",
   unknown: "Unknown quality",
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  live: "ok",
+  stale: "warning",
+  bad: "critical",
+  missing: "warning",
+  unknown: "warning",
 };
 
 function toneFor(point: LivePointJson, status: string, points: LivePointJson[]): string {
@@ -42,15 +53,28 @@ function lastUpdated(status: string, age: number | null, nodeId: string): string
   return nodeId + " · last heard " + Math.floor(age) + "s ago";
 }
 
+function splitValue(text: string, unit: string): { num: string; unit: string } {
+  if (unit === "bool" || unit === "code") return { num: text, unit: "" };
+  const match = text.match(/^([\d.]+)\s*(.*)$/);
+  if (!match) return { num: text, unit: "" };
+  return { num: match[1], unit: match[2] };
+}
+
 export function ReadingTiles({
   points,
   effectiveStatus,
   hubAge,
+  loading = false,
 }: {
   points: LivePointJson[];
   effectiveStatus: (point: LivePointJson) => string;
   hubAge: (point: LivePointJson) => number | null;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return <Skeleton rows={4} className="tile-skeleton" />;
+  }
+
   const classified = points.map((point) => ({
     ...point,
     status: effectiveStatus(point),
@@ -66,10 +90,20 @@ export function ReadingTiles({
             {group.points.map((point) => {
               const status = point.status;
               const age = hubAge(point);
-              const valueText =
+              const liveValue =
                 status === "live" && typeof point.value === "number"
                   ? formatReading(point.value, point.unit)
-                  : STATUS_TEXT[status as keyof typeof STATUS_TEXT] || "No data yet";
+                  : null;
+              const valueText =
+                liveValue ??
+                (STATUS_TEXT[status as keyof typeof STATUS_TEXT] || "No data yet");
+              const parts = liveValue
+                ? splitValue(liveValue, point.unit)
+                : { num: valueText, unit: "" };
+              const plain = point.plain_label || point.name;
+              const technical = point.plain_label ? point.name : point.point_id;
+              const tip = point.description || technical;
+              const badge = STATUS_BADGE[status] ?? "warning";
               return (
                 <article
                   key={point.point_id}
@@ -77,10 +111,23 @@ export function ReadingTiles({
                   data-point={point.point_id}
                   data-status={status}
                   data-tone={toneFor(point, status, classified)}
+                  title={tip}
                 >
-                  <div className="name">{point.name}</div>
-                  <div className="value">{valueText}</div>
-                  <div className="meta">{lastUpdated(status, age, point.node_id)}</div>
+                  <div className="tile-head">
+                    <div>
+                      <div className="name">{plain}</div>
+                      <div className="tech-name">{technical}</div>
+                    </div>
+                    <span className={`status-badge ${badge}`}>{status}</span>
+                  </div>
+                  <div className="value">
+                    <span className="num">{parts.num}</span>
+                    {parts.unit ? <span className="unit"> {parts.unit}</span> : null}
+                  </div>
+                  <div className="tile-foot">
+                    <div className="meta">{lastUpdated(status, age, point.node_id)}</div>
+                    <Sparkline values={point.sparkline ?? []} status={status} />
+                  </div>
                 </article>
               );
             })}

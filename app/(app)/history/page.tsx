@@ -1,7 +1,7 @@
-import { PlaceholderPage } from "@/components/PlaceholderPage";
+import { HistoryView } from "@/components/HistoryView";
 
 export const dynamic = "force-dynamic";
 
 export default function HistoryPage() {
-  return <PlaceholderPage title="History" />;
+  return <HistoryView />;
 }

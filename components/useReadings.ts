@@ -1,5 +1,5 @@
 /**
- * Shared poll of GET /api/readings for Home and Live.
+ * Shared poll of GET /api/readings for Home, Live, and the shell top bar.
  *
  * Same stale rule as before: after stale_after_seconds from received_at the
  * client marks the tile stale even between polls. This hook cannot write.
@@ -15,12 +15,15 @@ const TICK_MS = 250;
 export interface LivePointJson {
   point_id: string;
   name: string;
+  plain_label?: string | null;
+  description?: string | null;
   node_id: string;
   unit: string;
   status: string;
   quality: string | null;
   value: number | null;
   age_seconds: number | null;
+  sparkline?: number[];
 }
 
 export interface Snapshot {
@@ -28,6 +31,7 @@ export interface Snapshot {
   server_time: string;
   stale_after_seconds: number;
   mqtt_connected: boolean;
+  demo?: boolean;
   points: LivePointJson[];
 }
 
@@ -69,7 +73,11 @@ export function useReadings() {
         snapshotRef.current = body;
         syncedAt.current = performance.now();
         setSnapshot(body);
-        setBanner(body.mqtt_connected ? "" : "MQTT broker not connected.");
+        if (body.demo) {
+          setBanner("");
+        } else {
+          setBanner(body.mqtt_connected ? "" : "MQTT broker not connected.");
+        }
       } catch {
         if (cancelled) return;
         setBanner("Can't reach the hub.");

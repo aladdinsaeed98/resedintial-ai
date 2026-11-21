@@ -6,7 +6,7 @@
  */
 
 import type { Metadata, Viewport } from "next";
-import { Outfit, Source_Sans_3 } from "next/font/google";
+import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { PwaRegister } from "@/components/PwaRegister";
@@ -15,15 +15,15 @@ import { clerkAppearance } from "@/lib/clerk-appearance";
 
 import "./globals.css";
 
-const display = Outfit({
+const sans = Inter({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-body",
   display: "swap",
 });
 
-const body = Source_Sans_3({
+const display = Inter({
   subsets: ["latin"],
-  variable: "--font-body",
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#05070c",
+  themeColor: "#0a0a0a",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -58,7 +58,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const tree = (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <body>
         <PwaRegister />
         {children}

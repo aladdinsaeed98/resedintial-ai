@@ -1,9 +1,10 @@
 /**
  * Home-screen status from the same snapshot Live uses.
  *
- * We do not guess fan or off — those need thermostat calls (later phase).
- * Cooling vs heating is only a display of live return vs supply delta-T.
- * Stale still hides the number in hub/live.ts; this file never puts it back.
+ * Hero copy is plain English: "Running normally" or "Needs attention".
+ * Kind still encodes cooling / heating / fault for styling. We do not guess
+ * Idle or Fan — those need thermostat calls (later phase). Stale still hides
+ * the number in hub/live.ts; this file never puts it back.
  */
 
 export type GlanceKind = "cooling" | "heating" | "live" | "stale" | "fault" | "missing";
@@ -27,13 +28,20 @@ function point(points: GlancePoint[], id: string): GlancePoint | undefined {
   return points.find((item) => item.point_id === id);
 }
 
-/** One word for the Home hero. Equipment-off modes wait for call sensors. */
+function statusLabel(kind: GlanceKind): string {
+  if (kind === "cooling" || kind === "heating" || kind === "live") {
+    return "Running normally";
+  }
+  return "Needs attention";
+}
+
+/** Plain-language Home hero. Equipment-off modes wait for call sensors. */
 export function glanceFromPoints(points: GlancePoint[]): Glance {
   if (points.length === 0) {
-    return { kind: "missing", label: "No reading", deltaT: null };
+    return { kind: "missing", label: statusLabel("missing"), deltaT: null };
   }
   if (points.some((item) => item.status === "bad")) {
-    return { kind: "fault", label: "Fault", deltaT: null };
+    return { kind: "fault", label: statusLabel("fault"), deltaT: null };
   }
 
   const ret = point(points, "return_air_temp");
@@ -48,16 +56,16 @@ export function glanceFromPoints(points: GlancePoint[]): Glance {
   const anyLive = points.some((item) => item.status === "live");
   if (!anyLive) {
     if (points.some((item) => item.status === "stale")) {
-      return { kind: "stale", label: "Stale", deltaT };
+      return { kind: "stale", label: statusLabel("stale"), deltaT };
     }
-    return { kind: "missing", label: "No reading", deltaT };
+    return { kind: "missing", label: statusLabel("missing"), deltaT };
   }
 
   if (deltaT != null && deltaT >= COOLING_DELTA) {
-    return { kind: "cooling", label: "Cooling", deltaT };
+    return { kind: "cooling", label: statusLabel("cooling"), deltaT };
   }
   if (deltaT != null && deltaT <= HEATING_DELTA) {
-    return { kind: "heating", label: "Heating", deltaT };
+    return { kind: "heating", label: statusLabel("heating"), deltaT };
   }
-  return { kind: "live", label: "Live", deltaT };
+  return { kind: "live", label: statusLabel("live"), deltaT };
 }

@@ -1,4 +1,4 @@
-/* HVAC monitor service worker. Network only — never cache /api/readings or /api/alerts. */
+/* HVAC monitor service worker. Network only — never cache /api/readings, /api/alerts, or /api/history. */
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
