@@ -7,6 +7,7 @@ alwaysApply: true
 2. Do exactly one checklist item per request: the one the user names. Do not start other items.
 3. Match the existing code layout:
    - Next.js App Router in `app/` (Vercel), Clerk middleware, Prisma in `prisma/`
+   - signed-in shell in `app/(app)/`: Home, Live, History, Codes, Alerts, Ask, Settings (later five are placeholders)
    - local MQTT collector in `collector/` + `hub/gateway.ts` (never publishes)
    - shared hub logic in `hub/` (TypeScript)
    - topics `hvac/<node>/reading`

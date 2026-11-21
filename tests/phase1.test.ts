@@ -353,13 +353,17 @@ test("api is read only and hides stale numbers", async () => {
   w.publish("supply_air_temp", 56.2);
 
   const pageSource = [
-    fs.readFileSync(path.join(REPO, "app", "page.tsx"), "utf8"),
+    fs.readFileSync(path.join(REPO, "app", "(app)", "page.tsx"), "utf8"),
+    fs.readFileSync(path.join(REPO, "components", "AppShell.tsx"), "utf8"),
     fs.readFileSync(path.join(REPO, "components", "LivePage.tsx"), "utf8"),
+    fs.readFileSync(path.join(REPO, "components", "HomeView.tsx"), "utf8"),
+    fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8"),
   ].join("\n");
-  const scriptSource = fs.readFileSync(
-    path.join(REPO, "components", "LivePage.tsx"),
-    "utf8",
-  );
+  const scriptSource = [
+    fs.readFileSync(path.join(REPO, "components", "LivePage.tsx"), "utf8"),
+    fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8"),
+    fs.readFileSync(path.join(REPO, "components", "useReadings.ts"), "utf8"),
+  ].join("\n");
 
   const server = createMonitorServer((req, res) => {
     const url = req.url ?? "/";
@@ -481,8 +485,9 @@ test("mqtt.js client accepts MQTT 3.1.1 options", () => {
 
 test("page source marks a silent probe stale", () => {
   const css = fs.readFileSync(path.join(REPO, "app", "globals.css"), "utf8");
-  const js = fs.readFileSync(path.join(REPO, "components", "LivePage.tsx"), "utf8");
+  const js = fs.readFileSync(path.join(REPO, "components", "ReadingTiles.tsx"), "utf8");
   expect(css).toContain('[data-status="live"]');
+  expect(css).toContain('[data-status="stale"]');
   expect(js).toContain('stale: "Stale"');
   expect(js).toContain('typeof point.value === "number"');
 });
