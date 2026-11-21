@@ -33,7 +33,7 @@ Two ESP32 nodes publish readings to a hub on your home network. The hub stores t
 | Home hub (Raspberry Pi or PC)                                            |
 |                                                                          |
 |  [Mosquitto]   ->   [Backend]          ->  [Database]     ->  [AI layer] |
-|  MQTT broker        FastAPI, fault rules    SQLite history     Grounded, |
+|  MQTT broker        Next.js, fault rules    SQLite history     Grounded, |
 |                                                                optional  |
 +----------------+----------------------------------------+----------------+
                  |                                        |
@@ -216,7 +216,7 @@ Five phases, each ending in a test you can actually run. Don't start the next ph
 5. **AI agent.** The grounded agent described above, behind the Ask screen.
    - Pass: the agent's test questions answer correctly from live data, and the heat-pump question is refused.
 
-**Stack:** Python with FastAPI for the backend (same language as your supervisory repo), Mosquitto for MQTT, SQLite to start (move to InfluxDB only if it gets slow), and a plain HTML and JavaScript PWA. Firmware in Arduino C++ so the LED decoder is fully under your control. All of it builds in Cursor.
+**Stack:** Next.js (App Router, TypeScript) dashboard hosted on Vercel, Clerk for sign-in, Prisma + Postgres (Vercel Marketplace / Neon) for the reading log, Mosquitto on the home LAN, and a small TypeScript collector on the Windows PC or Pi that subscribes to MQTT and forwards outbound HTTPS. Firmware in Arduino C++ so the LED decoder is fully under your control. All of it builds in Cursor. The collector is monitor-only: it subscribes to MQTT and never publishes. Port 1883 is never port-forwarded.
 
 ## Testing
 
@@ -246,7 +246,7 @@ R1 matters as much as the faults. An app that alarms on a normal hot afternoon g
 - **The LED reader is optical.** Nothing is wired to the furnace board.
 - **Low-voltage power** for the nodes comes from a separate USB power supply, not tapped from the unit's transformer.
 - **Outdoor node** goes in a weatherproof box, out of the condenser's airflow and away from the contactor.
-- **Network:** local only to start. For access away from home use Tailscale rather than opening a port on your router. Because the app has no control path, a breach can expose readings but can't touch the equipment.
+- **Network:** Mosquitto stays on the LAN. The phone reaches the dashboard through Vercel (Clerk login), not through a hole in the router. Port 1883 must never be port-forwarded. Because the app has no control path, a breach can expose readings but can't touch the equipment.
 
 ## Privacy and accounts
 
@@ -346,3 +346,15 @@ Four items added to the plan after the original document. Each is marked "(added
 | R13 (added) | Humid normal day | Recorded normal day with high return humidity and the lower delta-T that comes with it | No delta-T alert |
 | R14 (added) | Condensate leak | `condensate_leak` set to wet | "Water at the air handler" fires as critical, plus push and email |
 | R15 (added) | Node clock skew | One node's timestamps shifted by 5 minutes | Its readings are marked `SUSPECT_CLOCK`, no rule fires on them, and the app doesn't show them as current |
+
+---
+
+## Hosting split (approved Nov 21, 2026)
+
+The original plan put the hub entirely on a home PC or Pi. Vercel cannot keep a long-lived MQTT socket, and port-forwarding Mosquitto would put the broker on the internet. Phase 1 now splits like this (still monitor-only, still no Phase 2+ features):
+
+- **Local collector** on the Windows PC / Pi: the existing TypeScript MQTT subscriber. Topic `hvac/+/reading` only. Outbound HTTPS POST to `/api/ingest` with `INGEST_SECRET`, batching, and a local SQLite buffer so a Wi-Fi drop is retried. Never publishes. Never opens an inbound port.
+- **Vercel Next.js app:** Clerk on every page and API except sign-in, sign-up, ingest, and health. Prisma writes readings with the device timestamp **and** server `received_at`. The signed-in home page is the live dashboard (tiles, stale after 120 s from `received_at` with the value hidden, "Read only" footer, node / last-heard). Polling is fine.
+- **Ingest is storage, not control.** POST `/api/ingest` accepts readings and returns `{ accepted }`. It never returns a command for the collector to apply.
+
+Local dev is `http://localhost:3000` with `.env.local`. Production keys live in Vercel / Clerk, not in git. `.env.production` in the repo is empty on purpose.

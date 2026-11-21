@@ -1,8 +1,18 @@
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+
+# Python leftovers (the hub is TypeScript now; keep these ignored anyway)
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
 venv/
+
+# Hub data and secrets. Never commit these.
 data/
 firmware/bench_node/config.h
 *.db
@@ -10,4 +20,6 @@ firmware/bench_node/config.h
 *.db-shm
 secrets.yaml
 .env
-*.env
+.env.local
+.env*.local
+# .env.example and .env.production (empty keys) are committed on purpose.

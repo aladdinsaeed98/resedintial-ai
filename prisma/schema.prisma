@@ -1,0 +1,43 @@
+// Cloud reading log for the Vercel app (Postgres).
+//
+// Data flow: local collector POST /api/ingest -> this table -> GET /api/readings
+// -> dashboard tiles. received_at is the Vercel server clock, which is what
+// stale uses. device_timestamp is the node's stamp, stored but not used for age.
+//
+// Nothing here can command HVAC equipment. This is storage only.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon pooled URLs need a direct URL for migrations. Local Docker: same as DATABASE_URL.
+  directUrl = env("DIRECT_URL")
+}
+
+/// One sample from a node. Append-only; the live page reads the newest id per point.
+model Reading {
+  id               Int      @id @default(autoincrement())
+  pointId          String   @map("point_id")
+  nodeId           String   @map("node_id")
+  value            Float?
+  unit             String
+  quality          String
+  deviceTimestamp  DateTime @map("device_timestamp")
+  receivedAt       DateTime @map("received_at")
+  timeSource       String   @map("time_source")
+
+  @@index([pointId, id])
+  @@map("readings")
+}
+
+/// Last time the home collector reached ingest, plus whether its MQTT session was up.
+model CollectorStatus {
+  id            Int      @id
+  mqttConnected Boolean  @map("mqtt_connected")
+  lastIngestAt  DateTime @map("last_ingest_at")
+
+  @@map("collector_status")
+}
